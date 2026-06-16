@@ -1,6 +1,8 @@
 from pathlib import Path
 import sqlite3
+from typing import Optional
 
+from lumina.datasets.dataset import Dataset
 from lumina.storage.db import init_project_db
 from lumina.storage.repositories import DatasetRepository, ProjectRepository
 
@@ -13,6 +15,40 @@ class Project:
         self._db_path = self.path / "lumina.db"
         self._conn = init_project_db(self.path)
         self.datasets = DatasetRepository(self._conn)
+
+    def register_dataset(
+        self,
+        name: str,
+        path: str,
+        adapter_type: Optional[str] = None,
+    ) -> Dataset:
+        from lumina.datasets.registry import detect_adapter
+
+        source = Path(path)
+        if not source.is_absolute():
+            source = (self.path / "datasets" / source).resolve()
+
+        target = self.path / "datasets" / source.name
+        if source.resolve() != target.resolve():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+
+            shutil.copy2(source, target)
+
+        adapter = adapter_type or detect_adapter(target)
+        dataset = Dataset(name=name, path=target, adapter_type=adapter, project_id=self.id)
+        schema = dataset.schema()
+        import json
+
+        self.datasets.create(
+            project_id=self.id,
+            name=name,
+            path=str(target),
+            adapter_type=adapter,
+            schema_json=json.dumps(schema),
+            metadata_json=json.dumps({"row_count": dataset.row_count()}),
+        )
+        return dataset
 
     def close(self) -> None:
         self._conn.close()
