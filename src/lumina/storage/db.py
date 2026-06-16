@@ -1,12 +1,13 @@
 import sqlite3
 from pathlib import Path
-from typing import Any
+
+from lumina.config import DB_FILENAME
 
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     path TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -39,7 +40,8 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
 
 def init_project_db(project_path: Path) -> sqlite3.Connection:
-    db_path = project_path / "lumina.db"
+    project_path.mkdir(parents=True, exist_ok=True)
+    db_path = project_path / DB_FILENAME
     conn = get_db(db_path)
     init_schema(conn)
     return conn
