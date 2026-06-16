@@ -3,7 +3,7 @@ from typing import Any
 
 import uvicorn
 
-from modelview.server import create_app
+from lumina.server import create_app
 
 
 def view(model: Any, port: int = 8080, open_browser: bool = True) -> None:

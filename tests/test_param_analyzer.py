@@ -1,5 +1,5 @@
-from modelview.parsers.simple import SimpleModel, SimpleParser
-from modelview.analyzers.params import ParamAnalyzer
+from lumina.parsers.simple import SimpleModel, SimpleParser
+from lumina.analyzers.params import ParamAnalyzer
 
 
 def test_linear_params():

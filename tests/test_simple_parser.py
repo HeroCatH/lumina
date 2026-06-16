@@ -1,4 +1,4 @@
-from modelview.parsers.simple import SimpleModel, SimpleParser
+from lumina.parsers.simple import SimpleModel, SimpleParser
 
 
 def test_parse_simple_model():

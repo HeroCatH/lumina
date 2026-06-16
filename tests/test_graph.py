@@ -1,4 +1,4 @@
-from modelview.graph import ModelGraph, Node, Edge
+from lumina.graph import ModelGraph, Node, Edge
 
 
 def test_model_graph_creation():

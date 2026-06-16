@@ -1,18 +1,18 @@
 import importlib
 from typing import Any
 
-from modelview.graph import ModelGraph
-from modelview.parsers.simple import SimpleModel, SimpleParser
+from lumina.graph import ModelGraph
+from lumina.parsers.simple import SimpleModel, SimpleParser
 
 
 # Map: module name substring -> (parser module path, parser class name)
 _FRAMEWORKS = [
-    ("mlx", "modelview.parsers.mlx", "MlxParser"),
-    ("torch", "modelview.parsers.pytorch", "PytorchParser"),
-    ("tensorflow", "modelview.parsers.keras", "KerasParser"),
-    ("keras", "modelview.parsers.keras", "KerasParser"),
-    ("onnx", "modelview.parsers.onnx", "OnnxParser"),
-    ("sklearn", "modelview.parsers.sklearn", "SklearnParser"),
+    ("mlx", "lumina.parsers.mlx", "MlxParser"),
+    ("torch", "lumina.parsers.pytorch", "PytorchParser"),
+    ("tensorflow", "lumina.parsers.keras", "KerasParser"),
+    ("keras", "lumina.parsers.keras", "KerasParser"),
+    ("onnx", "lumina.parsers.onnx", "OnnxParser"),
+    ("sklearn", "lumina.parsers.sklearn", "SklearnParser"),
 ]
 
 

@@ -4,8 +4,8 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from modelview.graph import ModelGraph
-from modelview.loaders import load_model
+from lumina.graph import ModelGraph
+from lumina.loaders import load_model
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -13,7 +13,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 def create_app(model: Any) -> FastAPI:
     graph = load_model(model)
-    app = FastAPI(title="ModelView")
+    app = FastAPI(title="Lumina")
 
     @app.get("/api/graph")
     def get_graph() -> dict:
@@ -33,7 +33,7 @@ def create_app(model: Any) -> FastAPI:
 
     @app.get("/api/stats")
     def get_stats() -> dict:
-        from modelview.analyzers.params import ParamAnalyzer
+        from lumina.analyzers.params import ParamAnalyzer
 
         return ParamAnalyzer().analyze(graph)
 

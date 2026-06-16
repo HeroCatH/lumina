@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from modelview.graph import ModelGraph
+from lumina.graph import ModelGraph
 
 
 class Parser(ABC):

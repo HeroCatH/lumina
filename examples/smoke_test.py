@@ -1,5 +1,5 @@
-import modelview
-from modelview.parsers.simple import SimpleModel
+import lumina
+from lumina.parsers.simple import SimpleModel
 
 model = SimpleModel([
     {"type": "Conv2d", "params": {"in_channels": 3, "out_channels": 64, "kernel_size": 3}},
@@ -9,4 +9,4 @@ model = SimpleModel([
 ])
 
 if __name__ == "__main__":
-    modelview.view(model, port=8080)
+    lumina.view(model, port=8080)

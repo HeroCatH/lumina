@@ -3,7 +3,7 @@ import pytest
 sklearn = pytest.importorskip("sklearn")
 
 from sklearn.tree import DecisionTreeClassifier
-from modelview.parsers.sklearn import SklearnParser
+from lumina.parsers.sklearn import SklearnParser
 
 
 def test_parse_decision_tree():

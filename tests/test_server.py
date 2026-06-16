@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
-from modelview.parsers.simple import SimpleModel
-from modelview.server import create_app
+from lumina.parsers.simple import SimpleModel
+from lumina.server import create_app
 
 
 def test_get_graph():

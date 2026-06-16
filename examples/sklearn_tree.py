@@ -1,4 +1,4 @@
-import modelview
+import lumina
 from sklearn.tree import DecisionTreeClassifier
 
 # Train a tiny decision tree
@@ -8,4 +8,4 @@ model = DecisionTreeClassifier(max_depth=3, random_state=42)
 model.fit(X, y)
 
 if __name__ == "__main__":
-    modelview.view(model, port=8080)
+    lumina.view(model, port=8080)

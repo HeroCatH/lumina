@@ -1,7 +1,7 @@
 import pytest
 
-from modelview.loaders import load_model
-from modelview.parsers.simple import SimpleModel
+from lumina.loaders import load_model
+from lumina.parsers.simple import SimpleModel
 
 
 def test_load_simple_model():

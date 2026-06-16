@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
-from modelview.graph import ModelGraph
-from modelview.analyzers.base import Analyzer
+from lumina.graph import ModelGraph
+from lumina.analyzers.base import Analyzer
 
 
 class ParamAnalyzer(Analyzer):

@@ -1,7 +1,7 @@
 from typing import Any
 
-from modelview.graph import ModelGraph
-from modelview.parsers.base import Parser
+from lumina.graph import ModelGraph
+from lumina.parsers.base import Parser
 
 
 class PytorchParser(Parser):
@@ -24,7 +24,7 @@ class PytorchParser(Parser):
         return ModelGraph(nodes=nodes, edges=edges, metadata={"framework": "pytorch"})
 
     def _make_node(self, name: str, module: Any) -> Any:
-        from modelview.graph import Node
+        from lumina.graph import Node
 
         return Node(
             id=name,
@@ -34,7 +34,7 @@ class PytorchParser(Parser):
         )
 
     def _make_edge(self, source: str, target: str) -> Any:
-        from modelview.graph import Edge
+        from lumina.graph import Edge
 
         return Edge(source=source, target=target)
 

@@ -1,7 +1,7 @@
 from typing import Any
 
-from modelview.graph import ModelGraph
-from modelview.parsers.base import Parser
+from lumina.graph import ModelGraph
+from lumina.parsers.base import Parser
 
 
 class KerasParser(Parser):

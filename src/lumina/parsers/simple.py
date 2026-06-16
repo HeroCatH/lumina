@@ -1,7 +1,7 @@
 from typing import Any
 
-from modelview.graph import ModelGraph, Node, Edge
-from modelview.parsers.base import Parser
+from lumina.graph import ModelGraph, Node, Edge
+from lumina.parsers.base import Parser
 
 
 class SimpleModel:

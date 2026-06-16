@@ -1,6 +1,6 @@
-# ModelView
+# Lumina
 
-A Python library for visualizing model structures in the browser.
+A local-first ML workbench for data, models, training, evaluation, and inference.
 
 ## Quick Start
 
@@ -13,8 +13,8 @@ pip install -e .
 ```
 
 ```python
-import modelview
-from modelview.parsers.simple import SimpleModel
+import lumina
+from lumina.parsers.simple import SimpleModel
 
 model = SimpleModel([
     {"type": "Conv2d", "params": {"in_channels": 3, "out_channels": 64, "kernel_size": 3}},
@@ -22,7 +22,7 @@ model = SimpleModel([
     {"type": "Linear", "params": {"in_features": 64, "out_features": 10}},
 ])
 
-modelview.view(model, port=8080)
+lumina.view(model, port=8080)
 ```
 
 Then open http://localhost:8080 in your browser.
@@ -36,17 +36,17 @@ Then open http://localhost:8080 in your browser.
 
 ## Optional Framework Support
 
-ModelView detects which ML frameworks are installed in your environment and uses them lazily:
+Lumina detects which ML frameworks are installed in your environment and uses them lazily:
 
 ```python
 import torch
-import modelview
+import lumina
 
 model = torch.nn.Sequential(
     torch.nn.Linear(10, 20),
     torch.nn.ReLU(),
 )
-modelview.view(model)
+lumina.view(model)
 ```
 
 If PyTorch is not installed, the PyTorch parser is simply not available.
