@@ -5,11 +5,12 @@ import { GraphNode, GraphEdge } from '../types'
 interface NodeGraphProps {
   nodes: GraphNode[]
   edges: GraphEdge[]
+  metadata: Record<string, any>
   selectedId: string | null
   onSelect: (id: string) => void
 }
 
-export default function NodeGraph({ nodes, edges, selectedId, onSelect }: NodeGraphProps) {
+export default function NodeGraph({ nodes, edges, metadata, selectedId, onSelect }: NodeGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<cytoscape.Core | null>(null)
 
@@ -59,7 +60,9 @@ export default function NodeGraph({ nodes, edges, selectedId, onSelect }: NodeGr
           },
         },
       ],
-      layout: { name: 'grid', padding: 10 } as any,
+      layout: metadata?.estimator?.includes('Tree') || metadata?.estimator?.includes('DecisionTree')
+        ? ({ name: 'breadthfirst', directed: true, padding: 10 } as any)
+        : ({ name: 'grid', padding: 10 } as any),
     })
 
     cy.on('tap', 'node', (evt) => {

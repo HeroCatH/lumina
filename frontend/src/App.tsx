@@ -35,6 +35,7 @@ export default function App() {
           <NodeGraph
             nodes={graph.nodes}
             edges={graph.edges}
+            metadata={graph.metadata}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />

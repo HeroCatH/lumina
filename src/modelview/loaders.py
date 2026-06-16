@@ -28,8 +28,8 @@ def load_model(model: Any) -> ModelGraph:
     module_name = type(model).__module__
     for substring, parser_module, parser_class in _FRAMEWORKS:
         if substring in module_name:
-            parser = _import_parser(parser_module, parser_class)
-            return parser.parse(model)
+            parser_cls = _import_parser(parser_module, parser_class)
+            return parser_cls().parse(model)
 
     raise ValueError(f"Unsupported model type: {type(model)} (module: {module_name})")
 
