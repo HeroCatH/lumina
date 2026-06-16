@@ -1,8 +1,11 @@
+import json
 from pathlib import Path
+import shutil
 import sqlite3
 from typing import Optional
 
 from lumina.datasets.dataset import Dataset
+from lumina.datasets.registry import detect_adapter
 from lumina.storage.db import init_project_db
 from lumina.storage.repositories import DatasetRepository, ProjectRepository
 
@@ -14,7 +17,15 @@ class Project:
         self.path = Path(path)
         self._db_path = self.path / "lumina.db"
         self._conn = init_project_db(self.path)
+        self._ensure_project_row()
         self.datasets = DatasetRepository(self._conn)
+
+    def _ensure_project_row(self) -> None:
+        self._conn.execute(
+            "INSERT OR IGNORE INTO projects (id, name, path) VALUES (?, ?, ?)",
+            (self.id, self.name, str(self.path)),
+        )
+        self._conn.commit()
 
     def register_dataset(
         self,
@@ -22,24 +33,26 @@ class Project:
         path: str,
         adapter_type: Optional[str] = None,
     ) -> Dataset:
-        from lumina.datasets.registry import detect_adapter
-
         source = Path(path)
         if not source.is_absolute():
             source = (self.path / "datasets" / source).resolve()
+        else:
+            source = source.resolve()
 
-        target = self.path / "datasets" / source.name
-        if source.resolve() != target.resolve():
+        datasets_dir = self.path / "datasets"
+        try:
+            relative_source = source.relative_to(datasets_dir)
+        except ValueError:
+            relative_source = source.name
+        target = datasets_dir / relative_source
+
+        if source != target:
             target.parent.mkdir(parents=True, exist_ok=True)
-            import shutil
-
             shutil.copy2(source, target)
 
         adapter = adapter_type or detect_adapter(target)
         dataset = Dataset(name=name, path=target, adapter_type=adapter, project_id=self.id)
         schema = dataset.schema()
-        import json
-
         self.datasets.create(
             project_id=self.id,
             name=name,

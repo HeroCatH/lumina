@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Any
 
+import polars as pl
+
 from lumina.datasets.adapters.base import DatasetAdapter
 
 
@@ -9,9 +11,7 @@ class CSVAdapter(DatasetAdapter):
     supported_extensions = [".csv"]
 
     def load(self, path: Path) -> Any:
-        import polars as pl
-
-        return pl.read_csv(path, infer_schema_length=0)
+        return pl.read_csv(path)
 
     def preview(self, data: Any, n: int = 10) -> list[dict]:
         return data.head(n).to_dicts()
@@ -20,9 +20,7 @@ class CSVAdapter(DatasetAdapter):
         return {name: str(dtype) for name, dtype in zip(data.columns, data.dtypes)}
 
     def statistics(self, data: Any) -> dict:
-        import polars as pl
-
-        numeric = data.select(data.select(pl.col(pl.NUMERIC_DTYPES)).columns)
+        numeric = data.select(pl.selectors.numeric())
         return {
             "row_count": len(data),
             "column_count": len(data.columns),
