@@ -3,10 +3,12 @@ from typing import Type
 
 from lumina.datasets.adapters.base import DatasetAdapter
 from lumina.datasets.adapters.csv import CSVAdapter
+from lumina.datasets.adapters.parquet import ParquetAdapter
 
 
 _ADAPTERS: dict[str, Type[DatasetAdapter]] = {
     CSVAdapter.name: CSVAdapter,
+    ParquetAdapter.name: ParquetAdapter,
 }
 
 
