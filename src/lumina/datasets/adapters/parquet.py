@@ -25,7 +25,9 @@ class ParquetAdapter(DatasetAdapter):
             "row_count": len(data),
             "column_count": len(data.columns),
             "columns": data.columns,
+            "column_types": {name: str(dtype) for name, dtype in zip(data.columns, data.dtypes)},
             "numeric_summary": numeric.describe().to_dicts() if numeric.columns else [],
+            "missing_counts": {name: data[name].null_count() for name in data.columns},
         }
 
     def row_count(self, data: Any) -> int:

@@ -40,8 +40,10 @@ def test_parquet_adapter_statistics_numeric_summary(tmp_path):
     assert stats["column_count"] == 2
     assert set(stats["columns"]) == {"a", "b"}
     assert len(stats["numeric_summary"]) > 0
-    assert "column_types" not in stats
-    assert "missing_counts" not in stats
+    assert "column_types" in stats
+    assert stats["column_types"] == {"a": "Int64", "b": "String"}
+    assert "missing_counts" in stats
+    assert stats["missing_counts"] == {"a": 0, "b": 0}
 
 
 def test_parquet_adapter_row_count(tmp_path):
