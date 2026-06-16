@@ -1,8 +1,8 @@
-# ModelView Platform Design Document
+# Lumina Platform Design Document
 
 ## 1. 目标与范围
 
-ModelView 从一个"模型结构查看器"升级为一个**本地优先的端到端机器学习工作台**。它帮助用户管理从原始数据到模型训练、评估、推理的完整 ML 生命周期，同时保持对框架和依赖的松耦合。
+Lumina 从一个"模型结构查看器"升级为一个**本地优先的端到端机器学习工作台**。它帮助用户管理从原始数据到模型训练、评估、推理的完整 ML 生命周期，同时保持对框架和依赖的松耦合。
 
 ### 核心原则
 
@@ -11,6 +11,7 @@ ModelView 从一个"模型结构查看器"升级为一个**本地优先的端到
 - **快速查看 + 项目管理并存**：既可以一行代码临时查看，也可以创建项目长期管理。
 - **可扩展**：Dataset、模型解析器、评估指标、可视化组件都通过 adapter/plugin 机制接入。
 - **可复盘**：所有实验、训练日志、评估结果持久化，支持训练后回放。
+- **训练不侵入代码**：Lumina 不定义训练方案（模型、优化器、损失函数等），只运行用户提供的训练脚本并记录指标。
 - **CLI 优先**：提供完整命令行接口，方便脚本化、批量操作和测试运行。
 
 ### 支持范围
@@ -31,6 +32,7 @@ ModelView 从一个"模型结构查看器"升级为一个**本地优先的端到
 - 云端协作和多用户权限
 - 自动超参搜索（AutoML）
 - 模型部署 serving
+- 训练方案设计 / 训练代码生成（Lumina 只运行用户脚本并记录指标）
 
 ---
 
@@ -41,9 +43,9 @@ ModelView 从一个"模型结构查看器"升级为一个**本地优先的端到
 项目是管理数据、模型、实验、评估、推理的容器。
 
 ```python
-import modelview
+import lumina
 
-project = modelview.open_project("my_project")  # 创建或打开
+project = lumina.open_project("my_project")  # 创建或打开
 project.datasets.create(name="mnist", path="data/mnist")
 project.models.register(name="lenet", path="models/lenet.pt", framework="pytorch")
 exp = project.start_experiment(name="exp_001", model="lenet", dataset="mnist")
@@ -51,7 +53,7 @@ exp = project.start_experiment(name="exp_001", model="lenet", dataset="mnist")
 
 每个项目对应一个本地目录，包含：
 
-- `modelview.db`：SQLite 元数据库
+- `lumina.db`：SQLite 元数据库
 - `datasets/`：数据集文件或引用
 - `models/`：模型文件
 - `experiments/`：实验配置和摘要
@@ -63,10 +65,10 @@ exp = project.start_experiment(name="exp_001", model="lenet", dataset="mnist")
 不创建项目，直接查看某个资源：
 
 ```python
-modelview.view(model)
-modelview.view_dataset("data/train.csv")
-modelview.view_experiment("runs/exp_001")
-modelview.view_logs("runs/exp_001")
+lumina.view(model)
+lumina.view_dataset("data/train.csv")
+lumina.view_experiment("runs/exp_001")
+lumina.view_logs("runs/exp_001")
 ```
 
 快速查看也会把数据缓存到临时目录，但不长期保存。
@@ -86,9 +88,9 @@ modelview.view_logs("runs/exp_001")
 Dataset 是统一的数据抽象，底层通过 adapter 支持不同格式：
 
 ```python
-dataset = modelview.Dataset.from_csv("data/train.csv")
-dataset = modelview.Dataset.from_image_folder("data/images", label_file="labels.csv")
-dataset = modelview.Dataset.from_huggingface("mnist", split="train")  # 可选 adapter
+dataset = lumina.Dataset.from_csv("data/train.csv")
+dataset = lumina.Dataset.from_image_folder("data/images", label_file="labels.csv")
+dataset = lumina.Dataset.from_huggingface("mnist", split="train")  # 可选 adapter
 ```
 
 Dataset 提供统一接口：
@@ -105,7 +107,7 @@ Dataset 提供统一接口：
 ### 3.1 后端架构
 
 ```
-Python 包 modelview
+Python 包 lumina
 ├── core/               # 项目、配置、存储管理
 ├── storage/            # SQLite + 文件系统抽象
 ├── datasets/           # Dataset 抽象 + adapters
@@ -150,7 +152,7 @@ frontend/
 
 ```
 my_project/
-├── modelview.db
+├── lumina.db
 ├── config.yaml
 ├── datasets/
 │   ├── mnist_train.parquet
@@ -265,16 +267,16 @@ CREATE TABLE inferences (
 ### 5.1 项目管理
 
 ```python
-import modelview
+import lumina
 
 # 打开或创建项目
-project = modelview.open_project("my_project", path="~/modelview_projects/my_project")
+project = lumina.open_project("my_project", path="~/lumina_projects/my_project")
 
 # 列出项目
-modelview.list_projects()
+lumina.list_projects()
 
 # 删除项目
-modelview.delete_project("my_project")
+lumina.delete_project("my_project")
 ```
 
 ### 5.2 数据管理
@@ -306,7 +308,7 @@ model = project.models.register(
 )
 
 # 快速查看
-modelview.view(model)
+lumina.view(model)
 ```
 
 ### 5.4 实验与训练
@@ -337,7 +339,7 @@ exp.finish()
 
 ```python
 # 读取 TensorBoard logs
-modelview.view_logs("runs/exp_001")
+lumina.view_logs("runs/exp_001")
 
 # 导入到项目实验
 project.import_tensorboard("runs/exp_001", experiment_name="exp_001")
@@ -372,127 +374,127 @@ project.infer_batch(
 
 ## 6. CLI 设计
 
-ModelView 提供统一的命令行入口 `modelview`（或 `mv`），覆盖项目创建、数据导入、模型查看、实验启动、评估推理、测试运行等常见操作。
+Lumina 提供统一的命令行入口 `lumina`（或 `mv`），覆盖项目创建、数据导入、模型查看、实验启动、评估推理、测试运行等常见操作。
 
 ### 6.1 全局选项
 
 ```bash
-modelview --version
-modelview --help
-modelview --project PATH   # 指定当前项目目录
+lumina --version
+lumina --help
+lumina --project PATH   # 指定当前项目目录
 ```
 
 ### 6.2 项目管理
 
 ```bash
 # 创建项目
-modelview project create my_project --path ~/modelview_projects/my_project
+lumina project create my_project --path ~/lumina_projects/my_project
 
 # 列出项目
-modelview project list
+lumina project list
 
 # 打开项目并启动 UI
-modelview project open my_project
+lumina project open my_project
 
 # 删除项目
-modelview project delete my_project
+lumina project delete my_project
 ```
 
 ### 6.3 数据管理
 
 ```bash
 # 导入数据集
-modelview data add mnist_train data/mnist_train.parquet --adapter parquet
+lumina data add mnist_train data/mnist_train.parquet --adapter parquet
 
 # 预览数据
-modelview data preview mnist_train --n 10
+lumina data preview mnist_train --n 10
 
 # 查看统计
-modelview data stats mnist_train
+lumina data stats mnist_train
 
 # 划分数据集
-modelview data split mnist_train --train 0.8 --val 0.1 --test 0.1
+lumina data split mnist_train --train 0.8 --val 0.1 --test 0.1
 ```
 
 ### 6.4 模型管理
 
 ```bash
 # 注册模型
-modelview model add lenet models/lenet.pt --framework pytorch
+lumina model add lenet models/lenet.pt --framework pytorch
 
 # 查看模型结构（启动 UI）
-modelview model view lenet
+lumina model view lenet
 
 # 分析模型
-modelview model analyze lenet
+lumina model analyze lenet
 
 # 导出配置 / 生成代码
-modelview model export lenet --format yaml
-modelview model codegen lenet --output model.py
+lumina model export lenet --format yaml
+lumina model codegen lenet --output model.py
 ```
 
 ### 6.5 实验与训练
 
 ```bash
 # 启动实验并打开训练面板
-modelview experiment create exp_001 --model lenet --dataset mnist_train --lr 0.001
+lumina experiment create exp_001 --model lenet --dataset mnist_train --lr 0.001
 
 # 查看实验
-modelview experiment list
-modelview experiment view exp_001
+lumina experiment list
+lumina experiment view exp_001
 
 # 导入 TensorBoard logs
-modelview experiment import-tb runs/exp_001 --name exp_001
+lumina experiment import-tb runs/exp_001 --name exp_001
 ```
 
 ### 6.6 评估与推理
 
 ```bash
 # 运行评估
-modelview eval run exp_001 --dataset mnist_val --metrics accuracy,precision,recall
+lumina eval run exp_001 --dataset mnist_val --metrics accuracy,precision,recall
 
 # 批量推理
-modelview infer batch lenet --dataset mnist_test --output predictions.csv
+lumina infer batch lenet --dataset mnist_test --output predictions.csv
 
 # 单条推理
-modelview infer single lenet --input test/1.png
+lumina infer single lenet --input test/1.png
 ```
 
 ### 6.7 启动 UI
 
 ```bash
 # 默认打开当前项目或快速查看模式
-modelview ui
+lumina ui
 
 # 指定端口
-modelview ui --port 8080
+lumina ui --port 8080
 
 # 快速查看模型文件
-modelview ui --model models/lenet.pt
+lumina ui --model models/lenet.pt
 
 # 快速查看数据集
-modelview ui --dataset data/train.csv
+lumina ui --dataset data/train.csv
 
 # 快速查看 TensorBoard logs
-modelview ui --logs runs/exp_001
+lumina ui --logs runs/exp_001
 ```
 
 ### 6.8 测试与检查
 
 ```bash
 # 运行项目内所有测试
-modelview test
+lumina test
 
 # 检查环境依赖和 adapter 可用性
-modelview doctor
+lumina doctor
 
 # 验证项目配置
-modelview project validate
+lumina project validate
 ```
 
 ### 6.9 实现说明
 
-- CLI 基于 `typer` 或 `click` 构建，作为 `modelview` 包的 console script 注册到 `pyproject.toml`。
+- CLI 基于 `typer` 或 `click` 构建，作为 `lumina` 包的 console script 注册到 `pyproject.toml`。
 - CLI 调用与 Python API 相同的内部函数，避免逻辑重复。
 - 所有耗时操作（如训练、评估、批量推理）提供 `--no-ui` 选项，适合 CI/脚本场景。
 
@@ -594,7 +596,7 @@ modelview project validate
 ### 8.1 Dataset Adapter
 
 ```python
-from modelview.datasets.adapter import DatasetAdapter
+from lumina.datasets.adapter import DatasetAdapter
 
 class CSVAdapter(DatasetAdapter):
     name = "csv"
@@ -622,25 +624,56 @@ class CSVAdapter(DatasetAdapter):
 
 ### 8.2 Model Parser Adapter
 
-已存在：simple、pytorch、mlx、keras、onnx、sklearn。未来通过 `modelview.plugins.register_parser()` 扩展。
+已存在：simple、pytorch、mlx、keras、onnx、sklearn。未来通过 `lumina.plugins.register_parser()` 扩展。
 
 ### 8.3 Evaluation Metric Adapter
 
 ```python
-modelview.evaluation.register_metric("my_metric", my_metric_fn)
+lumina.evaluation.register_metric("my_metric", my_metric_fn)
 ```
 
 ### 8.4 Visualization Adapter
 
 ```python
-modelview.visualization.register("shap", ShapVisualization)
+lumina.visualization.register("shap", ShapVisualization)
 ```
 
 ---
 
 ## 10. 实时训练更新机制
 
-### 9.1 Logger 写入
+### 训练边界说明
+
+Lumina **不定义训练方案**，也不生成训练代码。训练方案（模型架构、优化器、损失函数、学习率策略等）完全由用户在自己的 `train.py` 中决定。
+
+Lumina 在训练环节只负责三件事：
+
+1. **启动/停止训练脚本**：用户指定训练脚本路径，Lumina 以子进程方式运行，并可随时停止。
+2. **记录训练指标**：训练脚本通过 `lumina.log()` 主动上报，或写入 TensorBoard events 文件。
+3. **展示训练曲线**：前端通过 REST/WebSocket 实时或回放展示 loss、metrics、checkpoint 等信息。
+
+示例用户训练脚本：
+
+```python
+# train.py
+import lumina
+
+exp = lumina.start_experiment(project="my_project", name="exp_001")
+
+for epoch in range(100):
+    # 用户自己定义的训练逻辑
+    loss = train_one_epoch(...)
+    metrics = evaluate(...)
+    exp.log(epoch=epoch, metrics={"loss": loss, **metrics})
+```
+
+启动方式：
+
+```bash
+lumina train run --script train.py --project my_project --name exp_001
+```
+
+### 10.1 Logger 写入
 
 训练代码调用：
 
@@ -654,11 +687,11 @@ exp.log(epoch=10, step=1000, metrics={"loss": 0.5, "acc": 0.9})
 2. 发布到 WebSocket channel `/api/experiments/{id}/stream`。
 3. 同时追加到本地 TensorBoard-compatible events 文件（可选）。
 
-### 9.2 WebSocket 推送
+### 10.2 WebSocket 推送
 
 前端连接 `WS /api/experiments/{id}/stream`，后端用 `Broadcast` 推送新日志。前端收到后更新曲线。
 
-### 9.3 TensorBoard 读取
+### 10.3 TensorBoard 读取
 
 支持两种模式：
 
@@ -720,7 +753,7 @@ exp.log(epoch=10, step=1000, metrics={"loss": 0.5, "acc": 0.9})
 
 完整平台 spec 在此基础上扩展：
 
-- 把 `modelview.view()` 升级为项目级 API 的入口之一。
+- 把 `lumina.view()` 升级为项目级 API 的入口之一。
 - 保留现有 model parser 和 analyzer 架构。
 - 新增 `core`、`storage`、`datasets`、`experiments`、`evaluation`、`inference` 模块。
 - 前端从单页面扩展为多面板应用。
