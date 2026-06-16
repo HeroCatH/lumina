@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +18,8 @@ class ProjectManager:
         self._repo = ProjectRepository(self._conn)
 
     def create(self, name: str, path: Optional[Path] = None) -> Project:
+        if self._repo.get_by_name(name) is not None:
+            raise ValueError(f"Project with name already exists: {name}")
         if path is None:
             path = self.root / name
         path = Path(path).expanduser().resolve()
@@ -37,8 +40,6 @@ class ProjectManager:
         return self._repo.list_all()
 
     def delete(self, name: str) -> None:
-        import shutil
-
         record = self._repo.get_by_name(name)
         if record is None:
             raise ValueError(f"Project not found: {name}")
@@ -47,3 +48,9 @@ class ProjectManager:
 
     def close(self) -> None:
         self._conn.close()
+
+    def __enter__(self) -> "ProjectManager":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()

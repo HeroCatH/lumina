@@ -26,15 +26,15 @@ def generate_code(path: str) -> str:
 
 
 def open_project(name: str, path: Optional[str] = None) -> Project:
-    manager = ProjectManager()
-    return manager.open(name)
+    with ProjectManager(root=Path(path) if path else None) as manager:
+        return manager.open(name)
 
 
 def create_project(name: str, path: Optional[str] = None) -> Project:
-    manager = ProjectManager()
-    return manager.create(name, Path(path) if path else None)
+    with ProjectManager() as manager:
+        return manager.create(name, Path(path) if path else None)
 
 
 def list_projects() -> list[dict]:
-    manager = ProjectManager()
-    return manager.list()
+    with ProjectManager() as manager:
+        return manager.list()

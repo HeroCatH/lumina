@@ -17,5 +17,11 @@ class Project:
     def close(self) -> None:
         self._conn.close()
 
+    def __enter__(self) -> "Project":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
     def __repr__(self) -> str:
         return f"Project(id={self.id!r}, name={self.name!r}, path={self.path})"
