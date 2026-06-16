@@ -1,8 +1,17 @@
+import webbrowser
 from typing import Any
+
+import uvicorn
+
+from modelview.server import create_app
 
 
 def view(model: Any, port: int = 8080, open_browser: bool = True) -> None:
-    raise NotImplementedError("view() is planned for Task 4")
+    app = create_app(model)
+    if open_browser:
+        url = f"http://localhost:{port}"
+        webbrowser.open(url)
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
 
 
 def export_config(model: Any, path: str) -> None:
