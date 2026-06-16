@@ -1,8 +1,11 @@
 import webbrowser
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
 import uvicorn
 
+from lumina.core.project import Project
+from lumina.core.project_manager import ProjectManager
 from lumina.server import create_app
 
 
@@ -20,3 +23,18 @@ def export_config(model: Any, path: str) -> None:
 
 def generate_code(path: str) -> str:
     raise NotImplementedError("generate_code is planned for a later iteration")
+
+
+def open_project(name: str, path: Optional[str] = None) -> Project:
+    manager = ProjectManager()
+    return manager.open(name)
+
+
+def create_project(name: str, path: Optional[str] = None) -> Project:
+    manager = ProjectManager()
+    return manager.create(name, Path(path) if path else None)
+
+
+def list_projects() -> list[dict]:
+    manager = ProjectManager()
+    return manager.list()
