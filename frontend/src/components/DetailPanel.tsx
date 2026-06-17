@@ -1,8 +1,8 @@
-import { GraphNode, Stats } from '../types'
+import { GraphNode, ModelStats } from '../types'
 
 interface DetailPanelProps {
   node: GraphNode | null
-  stats: Stats | null
+  stats: ModelStats | null
 }
 
 export default function DetailPanel({ node, stats }: DetailPanelProps) {
@@ -25,8 +25,8 @@ export default function DetailPanel({ node, stats }: DetailPanelProps) {
       <h3>Stats</h3>
       {stats ? (
         <div>
-          <p><strong>Total params:</strong> {stats.total_params}</p>
-          <p><strong>Trainable params:</strong> {stats.trainable_params}</p>
+          <p><strong>Total params:</strong> {stats.params.total_params}</p>
+          <p><strong>Trainable params:</strong> {stats.params.trainable_params}</p>
         </div>
       ) : (
         <p>Loading stats...</p>
