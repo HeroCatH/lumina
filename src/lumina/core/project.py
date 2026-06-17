@@ -7,6 +7,7 @@ from typing import Optional
 from lumina.datasets.dataset import Dataset
 from lumina.datasets.registry import detect_adapter
 from lumina.storage.db import init_project_db
+from lumina.experiments.service import ExperimentService
 from lumina.storage.repositories import DatasetRepository, ProjectRepository
 
 
@@ -19,6 +20,7 @@ class Project:
         self._conn = init_project_db(self.path)
         self._ensure_project_row()
         self.datasets = DatasetRepository(self._conn)
+        self.experiments = ExperimentService(self._conn, self.path, self.id)
 
     def _ensure_project_row(self) -> None:
         self._conn.execute(
