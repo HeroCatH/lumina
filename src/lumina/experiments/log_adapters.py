@@ -67,7 +67,7 @@ class TensorBoardLogAdapter(LogAdapter):
             from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
             self._EventAccumulator = EventAccumulator
             self._available = True
-        except Exception:
+        except ImportError:
             self._available = False
 
     def supports(self, path: Path) -> bool:
@@ -77,11 +77,14 @@ class TensorBoardLogAdapter(LogAdapter):
 
     def parse(self, path: Path) -> Iterator[dict]:
         if not self._available:
-            raise RuntimeError("tensorboard is not installed; install it to parse tfevents files")
-        acc = self._EventAccumulator(str(path))
-        acc.Reload()
-        tags = acc.Tags().get("scalars", [])
-        for tag in tags:
-            events = acc.Scalars(tag)
-            for e in events:
-                yield {"step": int(e.step), "name": tag, "value": float(e.value)}
+            raise LogParseError(path, "tensorboard is not installed")
+        try:
+            acc = self._EventAccumulator(str(path))
+            acc.Reload()
+            tags = acc.Tags().get("scalars", [])
+            for tag in tags:
+                events = acc.Scalars(tag)
+                for e in events:
+                    yield {"step": int(e.step), "name": tag, "value": float(e.value)}
+        except Exception as exc:
+            raise LogParseError(path, f"failed to parse tfevents file: {exc}") from exc

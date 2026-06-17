@@ -25,7 +25,7 @@ class ExperimentService:
         count = 0
         log_dir = Path(log_dir).resolve()
         current_files = set()
-        for file_path in log_dir.iterdir():
+        for file_path in log_dir.rglob("*"):
             if not file_path.is_file():
                 continue
             current_files.add(str(file_path))
