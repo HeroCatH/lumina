@@ -95,6 +95,12 @@ class ExperimentService:
             self._conn.commit()
         return count
 
+    def sync_log_dir_for_run(self, run_id: str) -> int:
+        run = self.runs.get(run_id)
+        if run is None or run["log_dir"] is None:
+            raise ValueError("Run has no log directory")
+        return self.sync_log_dir(Path(run["log_dir"]), run_id)
+
     def register_log_dir(self, log_dir: Path, name: Optional[str] = None) -> dict:
         log_dir = Path(log_dir).resolve()
         if not log_dir.exists() or not log_dir.is_dir():

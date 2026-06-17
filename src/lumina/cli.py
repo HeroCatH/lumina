@@ -30,6 +30,23 @@ def main(argv: List[str] | None = None) -> int:
     open_parser.add_argument("name", help="Project name")
     open_parser.add_argument("--port", type=int, default=8080, help="Port to run the UI on")
 
+    logs_parser = project_sub.add_parser("logs", help="Experiment log management")
+    logs_sub = logs_parser.add_subparsers(dest="logs_command")
+
+    logs_add_parser = logs_sub.add_parser("add", help="Register an external log directory")
+    logs_add_parser.add_argument("path", help="Path to log directory")
+    logs_add_parser.add_argument("--project", required=True, help="Project name")
+    logs_add_parser.add_argument("--name", help="Run name")
+
+    logs_sync_parser = logs_sub.add_parser("sync", help="Sync external logs")
+    logs_sync_parser.add_argument("--project", required=True, help="Project name")
+    logs_sync_parser.add_argument("--run-id", required=True, help="Run ID to sync")
+
+    runs_parser = project_sub.add_parser("runs", help="List experiment runs")
+    runs_sub = runs_parser.add_subparsers(dest="runs_command")
+    runs_list_parser = runs_sub.add_parser("list", help="List runs")
+    runs_list_parser.add_argument("--project", required=True, help="Project name")
+
     # lumina data
     data_parser = subparsers.add_parser("data", help="Dataset management")
     data_sub = data_parser.add_subparsers(dest="data_command")
@@ -59,6 +76,14 @@ def main(argv: List[str] | None = None) -> int:
         return _handle_project_list()
     elif args.command == "project" and args.project_command == "open":
         return _handle_project_open(args)
+    elif args.command == "project" and args.project_command == "logs":
+        if args.logs_command == "add":
+            return _handle_logs_add(args)
+        elif args.logs_command == "sync":
+            return _handle_logs_sync(args)
+    elif args.command == "project" and args.project_command == "runs":
+        if args.runs_command == "list":
+            return _handle_runs_list(args)
     elif args.command == "data" and args.data_command == "add":
         return _handle_data_add(args)
     elif args.command == "model" and args.model_command == "analyze":
@@ -125,6 +150,36 @@ def _handle_data_add(args: argparse.Namespace) -> int:
     project = manager.open(args.project)
     dataset = project.register_dataset(args.name, str(Path(args.path).resolve()), args.adapter)
     print(f"Added dataset: {dataset.name} ({dataset.adapter_type})")
+    return 0
+
+
+def _handle_logs_add(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    manager = ProjectManager()
+    project = manager.open(args.project)
+    run = project.experiments.register_log_dir(Path(args.path), name=args.name)
+    print(f"Registered log run: {run['id']} ({run['name']})")
+    return 0
+
+
+def _handle_logs_sync(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    manager = ProjectManager()
+    project = manager.open(args.project)
+    count = project.experiments.sync_log_dir_for_run(args.run_id)
+    print(f"Synced {count} metrics")
+    return 0
+
+
+def _handle_runs_list(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    manager = ProjectManager()
+    project = manager.open(args.project)
+    for run in project.experiments.runs.list_by_project(project.id):
+        print(f"{run['id']}\t{run['name']}\t{run['status']}\t{run['created_at']}")
     return 0
 
 
