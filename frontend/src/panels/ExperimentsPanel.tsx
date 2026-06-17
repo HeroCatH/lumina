@@ -60,6 +60,7 @@ export default function ExperimentsPanel() {
     if (!selectedRunId) return
     const runId = selectedRunId
     const filter = metricName || undefined
+    const isStale = () => runId !== selectedRunId || filter !== (metricName || undefined)
     setLoading(true)
     setError(null)
     try {
@@ -68,14 +69,14 @@ export default function ExperimentsPanel() {
         fetchMetrics(runId, filter),
         fetchCheckpoints(runId),
       ])
-      if (runId !== selectedRunId) return
+      if (isStale()) return
       setMetrics(updatedMetrics)
       setCheckpoints(updatedCheckpoints)
     } catch (err: any) {
-      if (runId !== selectedRunId) return
+      if (isStale()) return
       setError(err.message)
     } finally {
-      if (runId === selectedRunId) setLoading(false)
+      if (!isStale()) setLoading(false)
     }
   }
 
