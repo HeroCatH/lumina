@@ -32,8 +32,12 @@ class ExperimentService:
             for adapter in self._adapters:
                 if not adapter.supports(file_path):
                     continue
-                content = file_path.read_bytes()
-                records = list(adapter.parse(file_path))
+                try:
+                    content = file_path.read_bytes()
+                    records = list(adapter.parse(file_path))
+                except LogParseError:
+                    # Skip files that fail to parse; other callers may choose to report them
+                    continue
                 content_hash = hashlib.sha256(content).hexdigest()
                 state = self._conn.execute(
                     "SELECT file_hash FROM sync_state WHERE run_id = ? AND file_path = ?",
@@ -41,31 +45,38 @@ class ExperimentService:
                 ).fetchone()
                 if state and state["file_hash"] == content_hash:
                     continue
-                self._conn.execute(
-                    "DELETE FROM metrics WHERE run_id = ? AND source_file = ?",
-                    (run_id, str(file_path)),
-                )
-                if records:
-                    self._conn.executemany(
-                        "INSERT INTO metrics (run_id, step, name, value, source_file) VALUES (?, ?, ?, ?, ?)",
-                        [
-                            (run_id, r["step"], r["name"], r["value"], str(file_path))
-                            for r in records
-                        ],
+                self._conn.execute("SAVEPOINT file_sync")
+                try:
+                    self._conn.execute(
+                        "DELETE FROM metrics WHERE run_id = ? AND source_file = ?",
+                        (run_id, str(file_path)),
                     )
-                    count += len(records)
-                self._conn.execute(
-                    """
-                    INSERT INTO sync_state (run_id, file_path, file_hash)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(run_id, file_path) DO UPDATE SET
-                        file_hash = excluded.file_hash,
-                        synced_at = CURRENT_TIMESTAMP
-                    """,
-                    (run_id, str(file_path), content_hash),
-                )
-                self._conn.commit()
-        # Clean up metrics/sync_state for files that were removed from the log dir
+                    if records:
+                        self._conn.executemany(
+                            "INSERT INTO metrics (run_id, step, name, value, source_file) VALUES (?, ?, ?, ?, ?)",
+                            [
+                                (run_id, r["step"], r["name"], r["value"], str(file_path))
+                                for r in records
+                            ],
+                        )
+                        count += len(records)
+                    self._conn.execute(
+                        """
+                        INSERT INTO sync_state (run_id, file_path, file_hash)
+                        VALUES (?, ?, ?)
+                        ON CONFLICT(run_id, file_path) DO UPDATE SET
+                            file_hash = excluded.file_hash,
+                            synced_at = CURRENT_TIMESTAMP
+                        """,
+                        (run_id, str(file_path), content_hash),
+                    )
+                    self._conn.execute("RELEASE file_sync")
+                    self._conn.commit()
+                except Exception:
+                    self._conn.execute("ROLLBACK TO file_sync")
+                    self._conn.execute("RELEASE file_sync")
+                    continue
+        # Clean up metrics/sync_state for files removed from the log dir
         known_files = {
             row["file_path"]
             for row in self._conn.execute(
