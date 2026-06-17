@@ -959,9 +959,9 @@ Add to `src/lumina/api.py`:
 from lumina.experiments.run import Run
 
 
-def create_project(name: str, path: Optional[str] = None) -> Project:
-    with ProjectManager(root=Path(path) if path else None) as manager:
-        return manager.create(name, Path(path) if path else None)
+def create_project(name: str, root: Optional[str] = None) -> Project:
+    with ProjectManager(root=Path(root) if root else None) as manager:
+        return manager.create(name)
 
 
 def start_run(project: Project, name: Optional[str] = None) -> Run:
@@ -971,9 +971,35 @@ def start_run(project: Project, name: Optional[str] = None) -> Run:
 Modify `src/lumina/__init__.py`:
 
 ```python
-from lumina.api import view, view_project, analyze, export_config, generate_code, open_project, create_project, list_projects, start_run
+from lumina.api import (
+    view,
+    view_project,
+    analyze,
+    export_config,
+    generate_code,
+    open_project,
+    create_project,
+    list_projects,
+    start_run,
+)
+from lumina.core.project import Project
+from lumina.core.project_manager import ProjectManager
+from lumina.experiments.run import Run
 
-__all__ = ["view", "view_project", "analyze", "export_config", "generate_code", "Project", "ProjectManager", "open_project", "create_project", "list_projects", "start_run"]
+__all__ = [
+    "view",
+    "view_project",
+    "analyze",
+    "export_config",
+    "generate_code",
+    "Project",
+    "ProjectManager",
+    "Run",
+    "open_project",
+    "create_project",
+    "list_projects",
+    "start_run",
+]
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
