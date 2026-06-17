@@ -86,5 +86,5 @@ class TensorBoardLogAdapter(LogAdapter):
                 events = acc.Scalars(tag)
                 for e in events:
                     yield {"step": int(e.step), "name": tag, "value": float(e.value)}
-        except Exception as exc:
+        except (ValueError, OSError) as exc:
             raise LogParseError(path, f"failed to parse tfevents file: {exc}") from exc

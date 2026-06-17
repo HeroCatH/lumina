@@ -94,5 +94,10 @@ class ExperimentService:
             source="auto",
             log_dir=str(log_dir),
         )
-        self.sync_log_dir(log_dir, run_id)
+        try:
+            self.sync_log_dir(log_dir, run_id)
+        except Exception:
+            self.runs._conn.execute("DELETE FROM runs WHERE id = ?", (run_id,))
+            self.runs._conn.commit()
+            raise
         return self.runs.get(run_id)
