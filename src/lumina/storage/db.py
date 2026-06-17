@@ -52,6 +52,11 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     path TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS sync_state (
+    file_hash TEXT PRIMARY KEY,
+    synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
