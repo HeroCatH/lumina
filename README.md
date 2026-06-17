@@ -68,3 +68,25 @@ uv pip install -e ".[dev]"
 - [ ] Memory usage analysis
 - [ ] Export model structure to YAML/JSON
 - [ ] Generate PyTorch `nn.Module` code from config
+
+## Project + Data Workflow
+
+```bash
+# Create project
+lumina project create my_project
+
+# Add dataset
+lumina data add train data/train.csv --project my_project
+
+# Open UI
+lumina project open my_project
+```
+
+```python
+import lumina
+
+project = lumina.open_project("my_project")
+project.register_dataset("train", "data/train.csv")
+
+lumina.view_project(project, port=8080)
+```
