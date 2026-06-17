@@ -59,5 +59,9 @@ def list_projects(root: Optional[str] = None) -> list[dict]:
 
 
 def start_run(project: Project, name: Optional[str] = None) -> Run:
-    """Start a new experiment run bound to the given project."""
+    """Start a new experiment run bound to the given project.
+
+    The caller is responsible for the project lifecycle and should call
+    run.finish() when training completes.
+    """
     return Run.start(project=project, name=name)
