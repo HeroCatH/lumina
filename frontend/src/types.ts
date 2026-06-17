@@ -64,3 +64,30 @@ export interface DatasetPreview {
     numeric_summary: Record<string, any>[]
   }
 }
+
+export interface Run {
+  id: string
+  name: string
+  status: string
+  source: string
+  log_dir?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Metric {
+  id: number
+  run_id: string
+  step: number
+  name: string
+  value: number
+  timestamp: string
+}
+
+export interface Checkpoint {
+  id: number
+  run_id: string
+  step: number
+  path: string
+  created_at: string
+}
