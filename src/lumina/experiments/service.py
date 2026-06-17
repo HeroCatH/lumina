@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter, LogParseError
+from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter, LogParseError, TensorBoardLogAdapter
 from lumina.storage.repositories import CheckpointRepository, MetricRepository, RunRepository
 
 
@@ -16,7 +16,7 @@ class ExperimentService:
         self.runs = RunRepository(conn)
         self.metrics = MetricRepository(conn)
         self.checkpoints = CheckpointRepository(conn)
-        self._adapters = [JsonlLogAdapter(), CsvLogAdapter()]
+        self._adapters = [JsonlLogAdapter(), CsvLogAdapter(), TensorBoardLogAdapter()]
 
     def checkpoint_dir(self, run_id: str) -> Path:
         return self._project_path / "checkpoints" / run_id

@@ -59,3 +59,27 @@ class CsvLogAdapter(LogAdapter):
                     }
                 except (KeyError, ValueError, TypeError) as exc:
                     raise LogParseError(path, f"invalid CSV row: {row!r} ({exc})") from exc
+
+
+class TensorBoardLogAdapter(LogAdapter):
+    def __init__(self):
+        try:
+            from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+            self._EventAccumulator = EventAccumulator
+            self._available = True
+        except Exception:
+            self._available = False
+
+    def supports(self, path: Path) -> bool:
+        return "tfevents" in path.name
+
+    def parse(self, path: Path) -> Iterator[dict]:
+        if not self._available:
+            raise RuntimeError("tensorboard is not installed; install it to parse tfevents files")
+        acc = self._EventAccumulator(str(path))
+        acc.Reload()
+        tags = acc.Tags().get("scalars", [])
+        for tag in tags:
+            events = acc.Scalars(tag)
+            for e in events:
+                yield {"step": int(e.step), "name": tag, "value": float(e.value)}
