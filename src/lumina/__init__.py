@@ -1,4 +1,3 @@
-from lumina.analyzers.aggregate import aggregate_analysis
 from lumina.api import (
     view,
     view_project,
@@ -12,6 +11,7 @@ from lumina.api import (
 )
 from lumina.core.project import Project
 from lumina.core.project_manager import ProjectManager
+from lumina.experiments.run import Run
 
 __all__ = [
     "view",
@@ -21,6 +21,7 @@ __all__ = [
     "generate_code",
     "Project",
     "ProjectManager",
+    "Run",
     "open_project",
     "create_project",
     "list_projects",

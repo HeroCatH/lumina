@@ -46,8 +46,9 @@ def open_project(name: str, path: Optional[str] = None) -> Project:
 
 
 def create_project(name: str, path: Optional[str] = None) -> Project:
-    with ProjectManager() as manager:
-        return manager.create(name, Path(path) if path else None)
+    root = Path(path) if path else None
+    with ProjectManager(root=root) as manager:
+        return manager.create(name)
 
 
 def list_projects() -> list[dict]:
@@ -55,5 +56,5 @@ def list_projects() -> list[dict]:
         return manager.list()
 
 
-def start_run(project: Optional[Project] = None, name: Optional[str] = None) -> Run:
+def start_run(project: Project, name: Optional[str] = None) -> Run:
     return Run.start(project=project, name=name)
