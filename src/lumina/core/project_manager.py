@@ -2,7 +2,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from lumina.config import DEFAULT_PROJECTS_ROOT
+from lumina.config import get_projects_root
 from lumina.core.project import Project
 from lumina.storage.db import get_db, init_schema
 from lumina.storage.repositories import ProjectRepository
@@ -10,7 +10,7 @@ from lumina.storage.repositories import ProjectRepository
 
 class ProjectManager:
     def __init__(self, root: Optional[Path] = None):
-        self.root = Path(root or DEFAULT_PROJECTS_ROOT)
+        self.root = Path(root or get_projects_root())
         self.root.mkdir(parents=True, exist_ok=True)
         self._global_db_path = self.root / "lumina.db"
         self._conn = get_db(self._global_db_path)
