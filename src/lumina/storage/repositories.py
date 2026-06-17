@@ -113,6 +113,11 @@ class RunRepository:
         )
         self._conn.commit()
 
+    def delete(self, run_id: str) -> bool:
+        cur = self._conn.execute("DELETE FROM runs WHERE id = ?", (run_id,))
+        self._conn.commit()
+        return cur.rowcount > 0
+
 
 class MetricRepository:
     def __init__(self, conn: sqlite3.Connection):

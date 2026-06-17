@@ -72,7 +72,7 @@ class ExperimentService:
                     )
                     self._conn.execute("RELEASE file_sync")
                     self._conn.commit()
-                except Exception:
+                except (sqlite3.Error, OSError):
                     self._conn.execute("ROLLBACK TO file_sync")
                     self._conn.execute("RELEASE file_sync")
                     continue
@@ -96,8 +96,10 @@ class ExperimentService:
         return count
 
     def register_log_dir(self, log_dir: Path, name: Optional[str] = None) -> dict:
-        run_id = str(uuid.uuid4())
         log_dir = Path(log_dir).resolve()
+        if not log_dir.exists() or not log_dir.is_dir():
+            raise ValueError(f"Log directory does not exist: {log_dir}")
+        run_id = str(uuid.uuid4())
         self.runs.create(
             run_id=run_id,
             project_id=self._project_id,
@@ -108,8 +110,7 @@ class ExperimentService:
         try:
             self.sync_log_dir(log_dir, run_id)
         except Exception:
-            self.runs._conn.execute("DELETE FROM runs WHERE id = ?", (run_id,))
-            self.runs._conn.commit()
+            self.runs.delete(run_id)
             raise
         return self.runs.get(run_id)
 
