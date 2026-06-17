@@ -67,6 +67,7 @@ export interface DatasetPreview {
 
 export interface Run {
   id: string
+  project_id?: string
   name: string
   status: string
   source: string
