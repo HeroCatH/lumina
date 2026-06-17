@@ -4,6 +4,7 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
+from lumina.analyzers.aggregate import aggregate_analysis
 from lumina.core.project import Project
 from lumina.datasets.dataset import Dataset
 from lumina.loaders import load_model
@@ -58,10 +59,11 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
             }
 
         @app.get("/api/stats")
-        def get_stats() -> dict:
-            from lumina.analyzers.params import ParamAnalyzer
-
-            return ParamAnalyzer().analyze(graph)
+        def get_stats(input_shape: Optional[str] = None) -> dict:
+            shape = None
+            if input_shape:
+                shape = [int(x) for x in input_shape.split(",")]
+            return aggregate_analysis(graph, input_shape=shape)
 
         @app.get("/api/node/{node_id}")
         def get_node(node_id: str) -> dict:

@@ -1,12 +1,19 @@
 import webbrowser
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import uvicorn
 
+from lumina.analyzers.aggregate import aggregate_analysis
 from lumina.core.project import Project
 from lumina.core.project_manager import ProjectManager
+from lumina.loaders import load_model
 from lumina.server import create_app
+
+
+def analyze(model: Any, input_shape: Optional[List[int]] = None) -> Dict[str, Any]:
+    graph = load_model(model)
+    return aggregate_analysis(graph, input_shape=input_shape)
 
 
 def view(model: Any, port: int = 8080, open_browser: bool = True) -> None:
