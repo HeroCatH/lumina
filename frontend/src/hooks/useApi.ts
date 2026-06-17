@@ -2,7 +2,8 @@ import { DatasetInfo, DatasetPreview } from '../types'
 
 export async function fetchCurrentProject(): Promise<{ name: string; path: string }> {
   const res = await fetch('/api/projects/current')
-  if (!res.ok) throw new Error('No project loaded')
+  if (res.status === 404) throw new Error('No project loaded')
+  if (!res.ok) throw new Error('Failed to fetch current project')
   return res.json()
 }
 

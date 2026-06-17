@@ -15,7 +15,7 @@ export default function App() {
         setMode('project')
       })
       .catch((err) => {
-        if (err.message !== 'Failed to fetch current project') {
+        if (err.message !== 'No project loaded') {
           console.error('Unexpected error fetching project:', err)
         }
         setMode('model')
