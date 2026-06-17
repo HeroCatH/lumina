@@ -8,6 +8,8 @@ export default function ExperimentsPanel() {
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [metricName, setMetricName] = useState<string>('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const selectedRun = useMemo(
     () => runs.find((r) => r.id === selectedRunId) || null,
@@ -17,31 +19,44 @@ export default function ExperimentsPanel() {
   useEffect(() => {
     fetchRuns().then((rs) => {
       setRuns(rs)
-      if (rs.length > 0 && !selectedRunId) setSelectedRunId(rs[0].id)
+      if (rs.length > 0) setSelectedRunId(rs[0].id)
     })
-  }, [selectedRunId])
+  }, [])
 
   useEffect(() => {
     if (!selectedRunId) return
-    fetchMetrics(selectedRunId).then(setMetrics)
-    fetchCheckpoints(selectedRunId).then(setCheckpoints)
-  }, [selectedRunId])
+    setLoading(true)
+    setError(null)
+    Promise.all([
+      fetchMetrics(selectedRunId, metricName || undefined),
+      fetchCheckpoints(selectedRunId),
+    ])
+      .then(([m, c]) => {
+        setMetrics(m)
+        setCheckpoints(c)
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [selectedRunId, metricName])
 
   const metricNames = useMemo(
     () => Array.from(new Set(metrics.map((m) => m.name))),
     [metrics]
   )
 
-  const filteredMetrics = useMemo(() => {
-    if (!metricName) return metrics
-    return metrics.filter((m) => m.name === metricName)
-  }, [metrics, metricName])
-
   const handleSync = async () => {
     if (!selectedRunId) return
-    await syncLogs(selectedRunId)
-    const updated = await fetchMetrics(selectedRunId)
-    setMetrics(updated)
+    setLoading(true)
+    setError(null)
+    try {
+      await syncLogs(selectedRunId)
+      const updated = await fetchMetrics(selectedRunId)
+      setMetrics(updated)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -80,7 +95,9 @@ export default function ExperimentsPanel() {
           </select>
           {selectedRun && <span style={{ fontSize: 12, color: '#6b7280' }}>{selectedRun.name}</span>}
         </div>
-        <MetricCurve metrics={filteredMetrics} />
+        {loading && <div style={{ fontSize: 12, color: '#6b7280' }}>Loading...</div>}
+        {error && <div style={{ fontSize: 12, color: '#ef4444' }}>{error}</div>}
+        <MetricCurve metrics={metrics} />
         <CheckpointList checkpoints={checkpoints} />
       </div>
     </div>
@@ -88,11 +105,14 @@ export default function ExperimentsPanel() {
 }
 
 function MetricCurve({ metrics }: { metrics: Metric[] }) {
-  const byName: Record<string, Metric[]> = {}
-  metrics.forEach((m) => {
-    if (!byName[m.name]) byName[m.name] = []
-    byName[m.name].push(m)
-  })
+  const byName = useMemo(() => {
+    const grouped: Record<string, Metric[]> = {}
+    metrics.forEach((m) => {
+      if (!grouped[m.name]) grouped[m.name] = []
+      grouped[m.name].push(m)
+    })
+    return grouped
+  }, [metrics])
 
   return (
     <div style={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 6, padding: 12 }}>
@@ -108,6 +128,7 @@ function MetricCurve({ metrics }: { metrics: Metric[] }) {
 }
 
 function SimpleLine({ data }: { data: Metric[] }) {
+  if (data.length === 0) return null
   const sorted = [...data].sort((a, b) => a.step - b.step)
   const values = sorted.map((d) => d.value)
   const min = Math.min(...values)
