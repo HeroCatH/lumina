@@ -7,6 +7,7 @@ import uvicorn
 from lumina.analyzers.aggregate import aggregate_analysis
 from lumina.core.project import Project
 from lumina.core.project_manager import ProjectManager
+from lumina.experiments.run import Run
 from lumina.loaders import load_model
 from lumina.server import create_app
 
@@ -52,3 +53,7 @@ def create_project(name: str, path: Optional[str] = None) -> Project:
 def list_projects() -> list[dict]:
     with ProjectManager() as manager:
         return manager.list()
+
+
+def start_run(project: Optional[Project] = None, name: Optional[str] = None) -> Run:
+    return Run.start(project=project, name=name)
