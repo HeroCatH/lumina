@@ -4,6 +4,36 @@ from lumina.core.project_manager import ProjectManager
 from lumina.experiments.log_adapters import JsonlLogAdapter
 
 
+def test_sync_log_dir_skips_unsupported_files(tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
+    manager = ProjectManager()
+    project = manager.create("p1")
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "metrics.jsonl").write_text('{"step":1,"name":"loss","value":0.5}\n')
+    (log_dir / "notes.txt").write_text("ignore me")
+
+    run = project.experiments.register_log_dir(log_dir, name="mixed")
+    metrics = project.experiments.metrics.list_by_run(run["id"])
+    assert len(metrics) == 1
+
+
+def test_sync_log_dir_csv(tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
+    manager = ProjectManager()
+    project = manager.create("p1")
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "metrics.csv").write_text("step,name,value\n1,acc,0.5\n2,acc,0.7\n")
+
+    run = project.experiments.register_log_dir(log_dir, name="csv-run")
+    metrics = project.experiments.metrics.list_by_run(run["id"], name="acc")
+    assert len(metrics) == 2
+
+
+
 def test_sync_log_dir_imports_metrics(tmp_path, monkeypatch):
     monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
     manager = ProjectManager()

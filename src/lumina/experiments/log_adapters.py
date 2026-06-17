@@ -39,8 +39,8 @@ class JsonlLogAdapter(LogAdapter):
                         "name": str(record["name"]),
                         "value": float(record["value"]),
                     }
-                except Exception as exc:
-                    raise LogParseError(path, f"invalid row: {exc}")
+                except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
+                    raise LogParseError(path, f"invalid JSONL row: {line!r} ({exc})") from exc
 
 
 class CsvLogAdapter(LogAdapter):
@@ -57,5 +57,5 @@ class CsvLogAdapter(LogAdapter):
                         "name": str(row["name"]),
                         "value": float(row["value"]),
                     }
-                except Exception as exc:
-                    raise LogParseError(path, f"invalid row: {exc}")
+                except (KeyError, ValueError, TypeError) as exc:
+                    raise LogParseError(path, f"invalid CSV row: {row!r} ({exc})") from exc

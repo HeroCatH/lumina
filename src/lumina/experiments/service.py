@@ -30,15 +30,20 @@ class ExperimentService:
             for adapter in self._adapters:
                 if not adapter.supports(file_path):
                     continue
-                content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+                try:
+                    content = file_path.read_bytes()
+                    records = list(adapter.parse(file_path))
+                except Exception:
+                    # Roll back any partial state for this file and skip it
+                    self._conn.rollback()
+                    continue
+                content_hash = hashlib.sha256(content).hexdigest()
                 state = self._conn.execute(
                     "SELECT file_hash FROM sync_state WHERE run_id = ? AND file_path = ?",
                     (run_id, str(file_path)),
                 ).fetchone()
                 if state and state["file_hash"] == content_hash:
                     continue
-                # Parse and batch insert
-                records = list(adapter.parse(file_path))
                 if records:
                     self._conn.execute(
                         "DELETE FROM metrics WHERE run_id = ? AND source_file = ?",

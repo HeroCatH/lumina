@@ -44,6 +44,13 @@ def test_jsonl_adapter_raises_on_bad_row(tmp_path):
         list(JsonlLogAdapter().parse(log_file))
 
 
+def test_csv_adapter_raises_on_bad_row(tmp_path):
+    log_file = tmp_path / "metrics.csv"
+    log_file.write_text("step,name,value\n1,loss\n")
+    with pytest.raises(LogParseError):
+        list(CsvLogAdapter().parse(log_file))
+
+
 def test_csv_adapter_case_insensitive_suffix(tmp_path):
     log_file = tmp_path / "metrics.CSV"
     log_file.write_text("step,name,value\n1,loss,0.5\n")
