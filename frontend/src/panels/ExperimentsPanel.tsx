@@ -17,26 +17,38 @@ export default function ExperimentsPanel() {
   )
 
   useEffect(() => {
-    fetchRuns().then((rs) => {
-      setRuns(rs)
-      if (rs.length > 0) setSelectedRunId(rs[0].id)
-    })
+    fetchRuns()
+      .then((rs) => {
+        setRuns(rs)
+        if (rs.length > 0) setSelectedRunId(rs[0].id)
+      })
+      .catch((err) => setError(err.message))
   }, [])
 
   useEffect(() => {
     if (!selectedRunId) return
     setLoading(true)
     setError(null)
+    let stale = false
     Promise.all([
       fetchMetrics(selectedRunId, metricName || undefined),
       fetchCheckpoints(selectedRunId),
     ])
       .then(([m, c]) => {
+        if (stale) return
         setMetrics(m)
         setCheckpoints(c)
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
+      .catch((err) => {
+        if (stale) return
+        setError(err.message)
+      })
+      .finally(() => {
+        if (!stale) setLoading(false)
+      })
+    return () => {
+      stale = true
+    }
   }, [selectedRunId, metricName])
 
   const metricNames = useMemo(
@@ -50,8 +62,12 @@ export default function ExperimentsPanel() {
     setError(null)
     try {
       await syncLogs(selectedRunId)
-      const updated = await fetchMetrics(selectedRunId)
-      setMetrics(updated)
+      const [updatedMetrics, updatedCheckpoints] = await Promise.all([
+        fetchMetrics(selectedRunId, metricName || undefined),
+        fetchCheckpoints(selectedRunId),
+      ])
+      setMetrics(updatedMetrics)
+      setCheckpoints(updatedCheckpoints)
     } catch (err: any) {
       setError(err.message)
     } finally {

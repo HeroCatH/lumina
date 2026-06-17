@@ -14,8 +14,10 @@ export default function App() {
         setProject(p)
         setMode('project')
       })
-      .catch(() => {
-        // No project loaded; assume model-only quick view mode
+      .catch((err) => {
+        if (err.message !== 'Failed to fetch current project') {
+          console.error('Unexpected error fetching project:', err)
+        }
         setMode('model')
       })
   }, [])
