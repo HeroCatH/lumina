@@ -35,3 +35,22 @@ def test_cli_data_add(monkeypatch, tmp_path):
 
     code = main(["data", "add", "sample", str(csv_path), "--project", "my_project"])
     assert code == 0
+
+
+def test_cli_model_analyze(capsys, tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
+    from lumina.parsers.simple import SimpleModel
+
+    model = SimpleModel([
+        {"type": "Linear", "params": {"in_features": 10, "out_features": 5}},
+    ])
+    import pickle
+    model_path = tmp_path / "model.pkl"
+    with open(model_path, "wb") as f:
+        pickle.dump(model, f)
+
+    code = main(["model", "analyze", "--model", str(model_path), "--input-shape", "1,10"])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "Params:" in captured.out
+    assert "FLOPs:" in captured.out

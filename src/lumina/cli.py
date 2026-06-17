@@ -39,6 +39,13 @@ def main(argv: List[str] | None = None) -> int:
     add_data_parser.add_argument("--adapter", help="Adapter type (auto-detect if omitted)")
     add_data_parser.add_argument("--project", required=True, help="Project name")
 
+    # lumina model
+    model_parser = subparsers.add_parser("model", help="Model management")
+    model_sub = model_parser.add_subparsers(dest="model_command")
+    analyze_parser = model_sub.add_parser("analyze", help="Analyze a model file")
+    analyze_parser.add_argument("--model", required=True, help="Path to model file")
+    analyze_parser.add_argument("--input-shape", help="Input shape as comma-separated ints")
+
     # lumina version
     subparsers.add_parser("version", help="Show version")
 
@@ -54,6 +61,8 @@ def main(argv: List[str] | None = None) -> int:
         return _handle_project_open(args)
     elif args.command == "data" and args.data_command == "add":
         return _handle_data_add(args)
+    elif args.command == "model" and args.model_command == "analyze":
+        return _handle_model_analyze(args)
     elif args.command == "version":
         print("lumina 0.1.0")
         return 0
@@ -114,8 +123,29 @@ def _handle_data_add(args: argparse.Namespace) -> int:
 
     manager = ProjectManager()
     project = manager.open(args.project)
-    dataset = project.register_dataset(args.name, args.path, args.adapter)
+    dataset = project.register_dataset(args.name, str(Path(args.path).resolve()), args.adapter)
     print(f"Added dataset: {dataset.name} ({dataset.adapter_type})")
+    return 0
+
+
+def _handle_model_analyze(args: argparse.Namespace) -> int:
+    import pickle
+    from lumina.api import analyze
+
+    with open(args.model, "rb") as f:
+        model = pickle.load(f)
+
+    input_shape = None
+    if args.input_shape:
+        input_shape = [int(x) for x in args.input_shape.split(",")]
+
+    stats = analyze(model, input_shape=input_shape)
+    print(f"Params: {stats['params']['total_params']}")
+    print(f"FLOPs: {stats['flops']['total_flops']}")
+    print(f"MACs: {stats['flops']['total_macs']}")
+    print(f"Memory: {stats['memory']['param_megabytes']} MB")
+    if "shapes" in stats:
+        print(f"Output shape: {stats['shapes']['output_shape']}")
     return 0
 
 
