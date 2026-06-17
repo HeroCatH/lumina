@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { fetchCurrentProject } from './hooks/useApi'
 import DataPanel from './panels/DataPanel'
+import ExperimentsPanel from './panels/ExperimentsPanel'
 import ModelPanel from './panels/ModelPanel'
 
 export default function App() {
-  const [mode, setMode] = useState<'project' | 'model' | null>(null)
+  const [mode, setMode] = useState<'project' | 'model' | 'experiments' | null>(null)
   const [project, setProject] = useState<{ name: string; path: string } | null>(null)
 
   useEffect(() => {
@@ -29,14 +30,26 @@ export default function App() {
           {project && <div style={{ fontSize: 12, color: '#666' }}>{project.name}</div>}
         </div>
         {mode === 'project' && (
-          <button onClick={() => setMode('model')}>Model View</button>
+          <>
+            <button onClick={() => setMode('model')}>Model View</button>
+            <button onClick={() => setMode('experiments')}>Experiments</button>
+          </>
         )}
         {mode === 'model' && (
-          <button onClick={() => setMode('project')}>Data View</button>
+          <>
+            <button onClick={() => setMode('project')}>Data View</button>
+            <button onClick={() => setMode('experiments')}>Experiments</button>
+          </>
+        )}
+        {mode === 'experiments' && (
+          <>
+            <button onClick={() => setMode('project')}>Data View</button>
+            <button onClick={() => setMode('model')}>Model View</button>
+          </>
         )}
       </header>
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {mode === 'project' ? <DataPanel /> : <ModelPanel />}
+        {mode === 'project' ? <DataPanel /> : mode === 'experiments' ? <ExperimentsPanel /> : <ModelPanel />}
       </div>
     </div>
   )
