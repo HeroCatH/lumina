@@ -112,3 +112,9 @@ class ExperimentService:
             self.runs._conn.commit()
             raise
         return self.runs.get(run_id)
+
+    def get_checkpoint(self, checkpoint_id: int) -> Optional[dict]:
+        row = self._conn.execute(
+            "SELECT * FROM checkpoints WHERE id = ?", (checkpoint_id,)
+        ).fetchone()
+        return dict(row) if row else None
