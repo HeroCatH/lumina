@@ -9,12 +9,23 @@ export default function DataPanel() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchDatasets().then(setDatasets).catch((e) => setError(e.message))
+    fetchDatasets()
+      .then((data) => {
+        setError(null)
+        setDatasets(data)
+      })
+      .catch((e) => setError(e.message))
   }, [])
 
   useEffect(() => {
     if (!selected) return
-    fetchDatasetPreview(selected).then(setPreview).catch((e) => setError(e.message))
+    setError(null)
+    fetchDatasetPreview(selected)
+      .then((data) => {
+        setError(null)
+        setPreview(data)
+      })
+      .catch((e) => setError(e.message))
   }, [selected])
 
   if (error) return <div style={{ padding: 20 }}>Error: {error}</div>
