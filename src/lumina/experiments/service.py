@@ -1,9 +1,8 @@
 import hashlib
-import os
 import sqlite3
 import uuid
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter
 from lumina.storage.repositories import CheckpointRepository, MetricRepository, RunRepository
@@ -24,25 +23,44 @@ class ExperimentService:
 
     def sync_log_dir(self, log_dir: Path, run_id: str) -> int:
         count = 0
-        for file_path in Path(log_dir).glob("*"):
+        log_dir = Path(log_dir).resolve()
+        for file_path in log_dir.iterdir():
+            if not file_path.is_file():
+                continue
             for adapter in self._adapters:
                 if not adapter.supports(file_path):
                     continue
-                file_hash = hashlib.sha256(
-                    f"{file_path}:{os.path.getmtime(file_path)}".encode()
-                ).hexdigest()
-                existing = self._conn.execute(
-                    "SELECT 1 FROM sync_state WHERE file_hash = ?", (file_hash,)
+                content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+                state = self._conn.execute(
+                    "SELECT file_hash FROM sync_state WHERE run_id = ? AND file_path = ?",
+                    (run_id, str(file_path)),
                 ).fetchone()
-                if existing:
+                if state and state["file_hash"] == content_hash:
                     continue
-                for record in adapter.parse(file_path):
-                    self.metrics.create(
-                        run_id=run_id, step=record["step"], name=record["name"], value=record["value"]
+                # Parse and batch insert
+                records = list(adapter.parse(file_path))
+                if records:
+                    self._conn.execute(
+                        "DELETE FROM metrics WHERE run_id = ? AND source_file = ?",
+                        (run_id, str(file_path)),
                     )
-                    count += 1
+                    self._conn.executemany(
+                        "INSERT INTO metrics (run_id, step, name, value, source_file) VALUES (?, ?, ?, ?, ?)",
+                        [
+                            (run_id, r["step"], r["name"], r["value"], str(file_path))
+                            for r in records
+                        ],
+                    )
+                    count += len(records)
                 self._conn.execute(
-                    "INSERT INTO sync_state (file_hash) VALUES (?)", (file_hash,)
+                    """
+                    INSERT INTO sync_state (run_id, file_path, file_hash)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(run_id, file_path) DO UPDATE SET
+                        file_hash = excluded.file_hash,
+                        synced_at = CURRENT_TIMESTAMP
+                    """,
+                    (run_id, str(file_path), content_hash),
                 )
                 self._conn.commit()
         return count

@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS metrics (
     step INTEGER,
     name TEXT NOT NULL,
     value REAL NOT NULL,
+    source_file TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -54,8 +55,11 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 );
 
 CREATE TABLE IF NOT EXISTS sync_state (
-    file_hash TEXT PRIMARY KEY,
-    synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    file_path TEXT NOT NULL,
+    file_hash TEXT NOT NULL,
+    synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (run_id, file_path)
 );
 """
 

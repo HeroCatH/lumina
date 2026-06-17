@@ -15,9 +15,16 @@ class LogAdapter(ABC):
         ...
 
 
+class LogParseError(Exception):
+    def __init__(self, path: Path, message: str):
+        self.path = path
+        self.message = message
+        super().__init__(f"{path}: {message}")
+
+
 class JsonlLogAdapter(LogAdapter):
     def supports(self, path: Path) -> bool:
-        return path.suffix == ".jsonl"
+        return path.suffix.lower() == ".jsonl"
 
     def parse(self, path: Path) -> Iterator[dict]:
         with open(path, "r", encoding="utf-8") as f:
@@ -25,24 +32,30 @@ class JsonlLogAdapter(LogAdapter):
                 line = line.strip()
                 if not line:
                     continue
-                record = json.loads(line)
-                yield {
-                    "step": int(record["step"]),
-                    "name": str(record["name"]),
-                    "value": float(record["value"]),
-                }
+                try:
+                    record = json.loads(line)
+                    yield {
+                        "step": int(record["step"]),
+                        "name": str(record["name"]),
+                        "value": float(record["value"]),
+                    }
+                except Exception as exc:
+                    raise LogParseError(path, f"invalid row: {exc}")
 
 
 class CsvLogAdapter(LogAdapter):
     def supports(self, path: Path) -> bool:
-        return path.suffix == ".csv"
+        return path.suffix.lower() == ".csv"
 
     def parse(self, path: Path) -> Iterator[dict]:
         with open(path, "r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                yield {
-                    "step": int(row["step"]),
-                    "name": str(row["name"]),
-                    "value": float(row["value"]),
-                }
+                try:
+                    yield {
+                        "step": int(row["step"]),
+                        "name": str(row["name"]),
+                        "value": float(row["value"]),
+                    }
+                except Exception as exc:
+                    raise LogParseError(path, f"invalid row: {exc}")
