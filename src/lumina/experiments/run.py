@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -17,9 +18,7 @@ class Run:
         self._service = service
 
     @classmethod
-    def start(cls, project: Optional[Project] = None, name: Optional[str] = None) -> "Run":
-        if project is None:
-            raise RuntimeError("A project is required. Use lumina.open_project() first.")
+    def start(cls, project: Project, name: Optional[str] = None) -> "Run":
         service = project.experiments
         run_id = str(uuid.uuid4())
         service.runs.create(
@@ -43,7 +42,7 @@ class Run:
         dest_dir = self._service.checkpoint_dir(self.id)
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest = dest_dir / f"step_{step}{src.suffix}"
-        dest.write_bytes(src.read_bytes())
+        shutil.copy2(src, dest)
         rel_path = dest.relative_to(self._project.path)
         self._service.checkpoints.create(run_id=self.id, step=step, path=str(rel_path))
         return dest
