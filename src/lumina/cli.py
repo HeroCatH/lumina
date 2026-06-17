@@ -156,31 +156,43 @@ def _handle_data_add(args: argparse.Namespace) -> int:
 def _handle_logs_add(args: argparse.Namespace) -> int:
     from lumina.core.project_manager import ProjectManager
 
-    manager = ProjectManager()
-    project = manager.open(args.project)
-    run = project.experiments.register_log_dir(Path(args.path), name=args.name)
-    print(f"Registered log run: {run['id']} ({run['name']})")
-    return 0
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        run = project.experiments.register_log_dir(Path(args.path), name=args.name)
+        print(f"Registered log run: {run['id']} ({run['name']})")
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
 
 def _handle_logs_sync(args: argparse.Namespace) -> int:
     from lumina.core.project_manager import ProjectManager
 
-    manager = ProjectManager()
-    project = manager.open(args.project)
-    count = project.experiments.sync_log_dir_for_run(args.run_id)
-    print(f"Synced {count} metrics")
-    return 0
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        count = project.experiments.sync_log_dir_for_run(args.run_id)
+        print(f"Synced {count} metrics")
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
 
 def _handle_runs_list(args: argparse.Namespace) -> int:
     from lumina.core.project_manager import ProjectManager
 
-    manager = ProjectManager()
-    project = manager.open(args.project)
-    for run in project.experiments.runs.list_by_project(project.id):
-        print(f"{run['id']}\t{run['name']}\t{run['status']}\t{run['created_at']}")
-    return 0
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        for run in project.experiments.runs.list_by_project(project.id):
+            print(f"{run['id']}\t{run['name']}\t{run['status']}\t{run['created_at']}")
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
 
 def _handle_model_analyze(args: argparse.Namespace) -> int:
