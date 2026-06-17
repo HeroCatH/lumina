@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter
+from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter, LogParseError
 from lumina.storage.repositories import CheckpointRepository, MetricRepository, RunRepository
 
 
@@ -24,19 +24,16 @@ class ExperimentService:
     def sync_log_dir(self, log_dir: Path, run_id: str) -> int:
         count = 0
         log_dir = Path(log_dir).resolve()
+        current_files = set()
         for file_path in log_dir.iterdir():
             if not file_path.is_file():
                 continue
+            current_files.add(str(file_path))
             for adapter in self._adapters:
                 if not adapter.supports(file_path):
                     continue
-                try:
-                    content = file_path.read_bytes()
-                    records = list(adapter.parse(file_path))
-                except Exception:
-                    # Roll back any partial state for this file and skip it
-                    self._conn.rollback()
-                    continue
+                content = file_path.read_bytes()
+                records = list(adapter.parse(file_path))
                 content_hash = hashlib.sha256(content).hexdigest()
                 state = self._conn.execute(
                     "SELECT file_hash FROM sync_state WHERE run_id = ? AND file_path = ?",
@@ -44,11 +41,11 @@ class ExperimentService:
                 ).fetchone()
                 if state and state["file_hash"] == content_hash:
                     continue
+                self._conn.execute(
+                    "DELETE FROM metrics WHERE run_id = ? AND source_file = ?",
+                    (run_id, str(file_path)),
+                )
                 if records:
-                    self._conn.execute(
-                        "DELETE FROM metrics WHERE run_id = ? AND source_file = ?",
-                        (run_id, str(file_path)),
-                    )
                     self._conn.executemany(
                         "INSERT INTO metrics (run_id, step, name, value, source_file) VALUES (?, ?, ?, ?, ?)",
                         [
@@ -68,6 +65,23 @@ class ExperimentService:
                     (run_id, str(file_path), content_hash),
                 )
                 self._conn.commit()
+        # Clean up metrics/sync_state for files that were removed from the log dir
+        known_files = {
+            row["file_path"]
+            for row in self._conn.execute(
+                "SELECT file_path FROM sync_state WHERE run_id = ?", (run_id,)
+            ).fetchall()
+        }
+        for removed_file in known_files - current_files:
+            self._conn.execute(
+                "DELETE FROM metrics WHERE run_id = ? AND source_file = ?",
+                (run_id, removed_file),
+            )
+            self._conn.execute(
+                "DELETE FROM sync_state WHERE run_id = ? AND file_path = ?",
+                (run_id, removed_file),
+            )
+            self._conn.commit()
         return count
 
     def register_log_dir(self, log_dir: Path, name: Optional[str] = None) -> dict:

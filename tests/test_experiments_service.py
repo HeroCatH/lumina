@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from lumina.core.project_manager import ProjectManager
 from lumina.experiments.log_adapters import JsonlLogAdapter
 
@@ -62,3 +64,35 @@ def test_sync_log_dir_imports_metrics(tmp_path, monkeypatch):
     metrics = project.experiments.metrics.list_by_run(run["id"], name="loss")
     assert len(metrics) == 1
     assert metrics[0]["step"] == 3
+
+
+def test_sync_log_dir_raises_on_bad_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
+    manager = ProjectManager()
+    project = manager.create("p1")
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "metrics.jsonl").write_text('{"step":1,"value":0.5}\n')
+
+    from lumina.experiments.log_adapters import LogParseError
+    with pytest.raises(LogParseError):
+        project.experiments.register_log_dir(log_dir, name="bad")
+
+
+def test_sync_log_dir_removes_deleted_files(tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
+    manager = ProjectManager()
+    project = manager.create("p1")
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "metrics.jsonl"
+    log_file.write_text('{"step":1,"name":"loss","value":0.5}\n')
+
+    run = project.experiments.register_log_dir(log_dir, name="deleting")
+    assert len(project.experiments.metrics.list_by_run(run["id"])) == 1
+
+    log_file.unlink()
+    project.experiments.sync_log_dir(log_dir, run["id"])
+    assert len(project.experiments.metrics.list_by_run(run["id"])) == 0
