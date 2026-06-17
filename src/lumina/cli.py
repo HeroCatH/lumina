@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 import sys
 from typing import List
 
@@ -24,6 +25,19 @@ def main(argv: List[str] | None = None) -> int:
     create_parser = project_sub.add_parser("create", help="Create a new project")
     create_parser.add_argument("name", help="Project name")
     create_parser.add_argument("--path", help="Project directory path")
+    list_parser = project_sub.add_parser("list", help="List projects")
+    open_parser = project_sub.add_parser("open", help="Open a project in the UI")
+    open_parser.add_argument("name", help="Project name")
+    open_parser.add_argument("--port", type=int, default=8080, help="Port to run the UI on")
+
+    # lumina data
+    data_parser = subparsers.add_parser("data", help="Dataset management")
+    data_sub = data_parser.add_subparsers(dest="data_command")
+    add_data_parser = data_sub.add_parser("add", help="Add a dataset to a project")
+    add_data_parser.add_argument("name", help="Dataset name")
+    add_data_parser.add_argument("path", help="Path to dataset file")
+    add_data_parser.add_argument("--adapter", help="Adapter type (auto-detect if omitted)")
+    add_data_parser.add_argument("--project", required=True, help="Project name")
 
     # lumina version
     subparsers.add_parser("version", help="Show version")
@@ -34,6 +48,12 @@ def main(argv: List[str] | None = None) -> int:
         return _handle_start(args)
     elif args.command == "project" and args.project_command == "create":
         return _handle_project_create(args)
+    elif args.command == "project" and args.project_command == "list":
+        return _handle_project_list()
+    elif args.command == "project" and args.project_command == "open":
+        return _handle_project_open(args)
+    elif args.command == "data" and args.data_command == "add":
+        return _handle_data_add(args)
     elif args.command == "version":
         print("lumina 0.1.0")
         return 0
@@ -61,7 +81,42 @@ def _handle_start(args: argparse.Namespace) -> int:
 
 
 def _handle_project_create(args: argparse.Namespace) -> int:
-    raise NotImplementedError("Project creation from CLI is planned for Phase 1")
+    from lumina.core.project_manager import ProjectManager
+
+    manager = ProjectManager()
+    path = Path(args.path) if args.path else None
+    project = manager.create(args.name, path)
+    print(f"Created project: {project.name} at {project.path}")
+    return 0
+
+
+def _handle_project_list() -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    manager = ProjectManager()
+    for project in manager.list():
+        print(f"{project['name']}\t{project['path']}")
+    return 0
+
+
+def _handle_project_open(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+    from lumina.api import view_project
+
+    manager = ProjectManager()
+    project = manager.open(args.name)
+    view_project(project, port=args.port)
+    return 0
+
+
+def _handle_data_add(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    manager = ProjectManager()
+    project = manager.open(args.project)
+    dataset = project.register_dataset(args.name, args.path, args.adapter)
+    print(f"Added dataset: {dataset.name} ({dataset.adapter_type})")
+    return 0
 
 
 if __name__ == "__main__":
