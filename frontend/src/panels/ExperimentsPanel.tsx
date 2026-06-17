@@ -8,7 +8,8 @@ export default function ExperimentsPanel() {
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [metricName, setMetricName] = useState<string>('')
-  const [loading, setLoading] = useState(false)
+  const [inFlight, setInFlight] = useState(0)
+  const loading = inFlight > 0
   const [error, setError] = useState<string | null>(null)
 
   const selectedRun = useMemo(
@@ -17,18 +18,22 @@ export default function ExperimentsPanel() {
   )
 
   useEffect(() => {
+    setInFlight((n) => n + 1)
     fetchRuns()
       .then((rs) => {
         setRuns(rs)
         setSelectedRunId((current) => (current === null && rs.length > 0 ? rs[0].id : current))
       })
       .catch((err) => setError(err.message))
+      .finally(() => {
+        setInFlight((n) => Math.max(0, n - 1))
+      })
   }, [])
 
   useEffect(() => {
     if (!selectedRunId) return
-    setLoading(true)
     setError(null)
+    setInFlight((n) => n + 1)
     let stale = false
     Promise.all([
       fetchMetrics(selectedRunId, metricName || undefined),
@@ -44,7 +49,7 @@ export default function ExperimentsPanel() {
         setError(err.message)
       })
       .finally(() => {
-        if (!stale) setLoading(false)
+        setInFlight((n) => Math.max(0, n - 1))
       })
     return () => {
       stale = true
@@ -61,8 +66,8 @@ export default function ExperimentsPanel() {
     const runId = selectedRunId
     const filter = metricName || undefined
     const isStale = () => runId !== selectedRunId || filter !== (metricName || undefined)
-    setLoading(true)
     setError(null)
+    setInFlight((n) => n + 1)
     try {
       await syncLogs(runId)
       const [updatedMetrics, updatedCheckpoints] = await Promise.all([
@@ -78,7 +83,7 @@ export default function ExperimentsPanel() {
         setError(err.message)
       }
     } finally {
-      setLoading(false)
+      setInFlight((n) => Math.max(0, n - 1))
     }
   }
 
