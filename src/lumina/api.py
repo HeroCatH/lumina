@@ -40,21 +40,24 @@ def generate_code(path: str) -> str:
     raise NotImplementedError("generate_code is planned for a later iteration")
 
 
-def open_project(name: str, path: Optional[str] = None) -> Project:
-    with ProjectManager(root=Path(path) if path else None) as manager:
+def open_project(name: str, root: Optional[str] = None) -> Project:
+    """Open an existing project. The caller is responsible for closing the returned Project."""
+    with ProjectManager(root=Path(root) if root else None) as manager:
         return manager.open(name)
 
 
-def create_project(name: str, path: Optional[str] = None) -> Project:
-    root = Path(path) if path else None
-    with ProjectManager(root=root) as manager:
+def create_project(name: str, root: Optional[str] = None) -> Project:
+    """Create a new project under the given root directory. The caller is responsible for closing the returned Project."""
+    with ProjectManager(root=Path(root) if root else None) as manager:
         return manager.create(name)
 
 
-def list_projects() -> list[dict]:
-    with ProjectManager() as manager:
+def list_projects(root: Optional[str] = None) -> list[dict]:
+    """List projects under the given root directory."""
+    with ProjectManager(root=Path(root) if root else None) as manager:
         return manager.list()
 
 
 def start_run(project: Project, name: Optional[str] = None) -> Run:
+    """Start a new experiment run bound to the given project."""
     return Run.start(project=project, name=name)

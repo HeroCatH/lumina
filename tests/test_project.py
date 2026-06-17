@@ -42,7 +42,7 @@ def test_manager_delete(tmp_path):
 
 def test_api_create_project(tmp_path):
     name = f"api_project_{uuid.uuid4().hex[:8]}"
-    project = create_project(name, path=str(tmp_path))
+    project = create_project(name, root=str(tmp_path))
     assert isinstance(project, Project)
     assert project.name == name
     assert project.path.exists()
@@ -51,8 +51,8 @@ def test_api_create_project(tmp_path):
 
 def test_api_open_project(tmp_path):
     name = f"api_open_{uuid.uuid4().hex[:8]}"
-    create_project(name, path=str(tmp_path))
-    project = open_project(name, path=str(tmp_path))
+    create_project(name, root=str(tmp_path))
+    project = open_project(name, root=str(tmp_path))
     assert project.name == name
 
 
@@ -60,8 +60,8 @@ def test_api_list_projects(tmp_path, monkeypatch):
     monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
     name_one = f"one_{uuid.uuid4().hex[:8]}"
     name_two = f"two_{uuid.uuid4().hex[:8]}"
-    create_project(name_one, path=str(tmp_path))
-    create_project(name_two, path=str(tmp_path))
+    create_project(name_one, root=str(tmp_path))
+    create_project(name_two, root=str(tmp_path))
     projects = list_projects()
     names = {p["name"] for p in projects}
     assert {name_one, name_two}.issubset(names)
@@ -69,22 +69,22 @@ def test_api_list_projects(tmp_path, monkeypatch):
 
 def test_api_open_nonexistent_project(tmp_path):
     name = f"exists_{uuid.uuid4().hex[:8]}"
-    create_project(name, path=str(tmp_path))
+    create_project(name, root=str(tmp_path))
     with pytest.raises(ValueError, match="Project not found"):
-        open_project(f"does_not_exist_{uuid.uuid4().hex[:8]}", path=str(tmp_path))
+        open_project(f"does_not_exist_{uuid.uuid4().hex[:8]}", root=str(tmp_path))
 
 
 def test_api_create_duplicate_project(tmp_path):
     name = f"dup_{uuid.uuid4().hex[:8]}"
-    create_project(name, path=str(tmp_path))
+    create_project(name, root=str(tmp_path))
     with pytest.raises(ValueError, match="already exists"):
-        create_project(name, path=str(tmp_path))
+        create_project(name, root=str(tmp_path))
 
 
 def test_api_create_with_custom_path(tmp_path):
     name = f"custom_path_project_{uuid.uuid4().hex[:8]}"
     custom_root = tmp_path / name
-    project = create_project(name, path=str(custom_root))
+    project = create_project(name, root=str(custom_root))
     assert project.path == custom_root / name
     assert project.path.exists()
 
@@ -94,7 +94,7 @@ def test_api_open_with_custom_path(tmp_path):
     custom_root = tmp_path / f"root_{uuid.uuid4().hex[:8]}"
     with ProjectManager(root=custom_root) as manager:
         manager.create(name)
-    project = open_project(name, path=str(custom_root))
+    project = open_project(name, root=str(custom_root))
     assert project.name == name
 
 
