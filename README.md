@@ -90,3 +90,27 @@ project.register_dataset("train", "data/train.csv")
 
 lumina.view_project(project, port=8080)
 ```
+
+## Model Analysis
+
+Lumina can analyze your model's parameters, FLOPs/MACs, memory footprint, and layer shapes.
+
+```python
+import lumina
+from lumina.parsers.simple import SimpleModel
+
+model = SimpleModel([
+    {"type": "Conv2d", "params": {"in_channels": 3, "out_channels": 64, "kernel_size": 3}},
+    {"type": "ReLU", "params": {}},
+    {"type": "Linear", "params": {"in_features": 64, "out_features": 10}},
+])
+
+stats = lumina.analyze(model, input_shape=[1, 3, 32, 32])
+print(stats)
+```
+
+Or via CLI:
+
+```bash
+lumina model analyze --model path/to/model.pkl --input-shape 1,3,32,32
+```
