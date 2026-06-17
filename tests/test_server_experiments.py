@@ -128,3 +128,31 @@ def test_experiment_endpoints_require_project(tmp_path, monkeypatch):
     res = client.get("/api/runs")
     assert res.status_code == 404
     assert res.json()["detail"] == "No project loaded"
+
+
+def test_sync_current_log_dir_endpoint(tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
+    manager = ProjectManager()
+    project = manager.create("p1")
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "metrics.jsonl").write_text('{"step":1,"name":"loss","value":0.5}\n')
+    run = project.experiments.register_log_dir(log_dir, name="log-run")
+
+    app = create_app(project=project)
+    client = TestClient(app)
+    res = client.post(f"/api/projects/current/logs/sync?run_id={run['id']}")
+    assert res.status_code == 200
+    assert res.json()["synced"] == 0
+
+
+def test_register_log_dir_endpoint_rejects_missing_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("LUMINA_PROJECTS_ROOT", str(tmp_path))
+    manager = ProjectManager()
+    project = manager.create("p1")
+
+    app = create_app(project=project)
+    client = TestClient(app)
+    res = client.post(f"/api/projects/{project.id}/logs?log_dir=/does/not/exist")
+    assert res.status_code == 400

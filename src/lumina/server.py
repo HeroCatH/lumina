@@ -98,22 +98,22 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
-    @app.post("/api/projects/{project_id}/logs/sync")
-    def sync_log_dir(project_id: str, run_id: str) -> dict:
+    @app.post("/api/projects/current/logs/sync")
+    def sync_current_log_dir(run_id: str) -> dict:
         if project is None:
             raise HTTPException(status_code=404, detail="No project loaded")
-        if project_id != project.id:
-            raise HTTPException(status_code=404, detail="Project not found")
         run = project.experiments.runs.get(run_id)
         if run is None or run["log_dir"] is None:
             raise HTTPException(status_code=400, detail="Run has no log directory")
         count = project.experiments.sync_log_dir(Path(run["log_dir"]), run_id)
         return {"synced": count}
 
-    @app.post("/api/projects/current/logs/sync")
-    def sync_current_log_dir(run_id: str) -> dict:
+    @app.post("/api/projects/{project_id}/logs/sync")
+    def sync_log_dir(project_id: str, run_id: str) -> dict:
         if project is None:
             raise HTTPException(status_code=404, detail="No project loaded")
+        if project_id != project.id:
+            raise HTTPException(status_code=404, detail="Project not found")
         run = project.experiments.runs.get(run_id)
         if run is None or run["log_dir"] is None:
             raise HTTPException(status_code=400, detail="Run has no log directory")
