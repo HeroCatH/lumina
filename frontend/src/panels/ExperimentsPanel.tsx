@@ -58,20 +58,24 @@ export default function ExperimentsPanel() {
 
   const handleSync = async () => {
     if (!selectedRunId) return
+    const runId = selectedRunId
+    const filter = metricName || undefined
     setLoading(true)
     setError(null)
     try {
-      await syncLogs(selectedRunId)
+      await syncLogs(runId)
       const [updatedMetrics, updatedCheckpoints] = await Promise.all([
-        fetchMetrics(selectedRunId, metricName || undefined),
-        fetchCheckpoints(selectedRunId),
+        fetchMetrics(runId, filter),
+        fetchCheckpoints(runId),
       ])
+      if (runId !== selectedRunId) return
       setMetrics(updatedMetrics)
       setCheckpoints(updatedCheckpoints)
     } catch (err: any) {
+      if (runId !== selectedRunId) return
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (runId === selectedRunId) setLoading(false)
     }
   }
 
