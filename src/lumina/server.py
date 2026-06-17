@@ -1,10 +1,11 @@
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
 from lumina.core.project import Project
+from lumina.datasets.dataset import Dataset
 from lumina.loaders import load_model
 
 
@@ -27,14 +28,12 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
         return project.datasets.list_by_project(project.id)
 
     @app.get("/api/datasets/{name}/preview")
-    def preview_dataset(name: str, n: int = 10) -> dict:
+    def preview_dataset(name: str, n: int = Query(10, ge=1)) -> dict:
         if project is None:
             raise HTTPException(status_code=404, detail="No project loaded")
         record = project.datasets.get_by_name(project.id, name)
         if record is None:
             raise HTTPException(status_code=404, detail=f"Dataset {name} not found")
-        from lumina.datasets.dataset import Dataset
-
         ds = Dataset(name=record["name"], path=Path(record["path"]), adapter_type=record["adapter_type"])
         return {"rows": ds.preview(n), "schema": ds.schema(), "statistics": ds.statistics()}
 
