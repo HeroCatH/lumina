@@ -22,6 +22,29 @@ export interface Stats {
   per_node: Record<string, number>
 }
 
+export interface ModelStats {
+  params: {
+    total_params: number
+    trainable_params: number
+    per_node: Record<string, number>
+  }
+  flops: {
+    total_flops: number
+    total_macs: number
+    per_node: Record<string, number>
+  }
+  memory: {
+    param_bytes: number
+    param_megabytes: number
+    per_node: Record<string, { param_bytes: number }>
+  }
+  shapes?: {
+    input_shape: number[]
+    output_shape: number[]
+    per_node: Record<string, { input_shape: number[]; output_shape: number[] }>
+  }
+}
+
 export interface DatasetInfo {
   id: string
   name: string
