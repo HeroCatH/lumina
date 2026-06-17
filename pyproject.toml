@@ -20,6 +20,9 @@ dev = [
     "pytest>=8.0.0",
     "httpx>=0.27.0",
 ]
+tensorboard = [
+    "tensorboard>=2.16.0",
+]
 
 [project.scripts]
 lumina = "lumina.cli:main"

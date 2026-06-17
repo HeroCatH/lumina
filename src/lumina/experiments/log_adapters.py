@@ -71,6 +71,8 @@ class TensorBoardLogAdapter(LogAdapter):
             self._available = False
 
     def supports(self, path: Path) -> bool:
+        if not self._available:
+            return False
         return "tfevents" in path.name
 
     def parse(self, path: Path) -> Iterator[dict]:
