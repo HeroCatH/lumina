@@ -1,48 +1,42 @@
 import { useEffect, useState } from 'react'
-import { fetchGraph, fetchStats } from './api'
-import { ModelGraph, Stats } from './types'
-import LayerTree from './components/LayerTree'
-import NodeGraph from './components/NodeGraph'
-import DetailPanel from './components/DetailPanel'
+import { fetchCurrentProject } from './hooks/useApi'
+import DataPanel from './panels/DataPanel'
+import ModelPanel from './panels/ModelPanel'
 
 export default function App() {
-  const [graph, setGraph] = useState<ModelGraph | null>(null)
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'project' | 'model' | null>(null)
+  const [project, setProject] = useState<{ name: string; path: string } | null>(null)
 
   useEffect(() => {
-    Promise.all([fetchGraph(), fetchStats()])
-      .then(([g, s]) => {
-        setGraph(g)
-        setStats(s)
+    fetchCurrentProject()
+      .then((p) => {
+        setProject(p)
+        setMode('project')
       })
-      .catch((e) => setError(e.message))
+      .catch(() => {
+        // No project loaded; assume model-only quick view mode
+        setMode('model')
+      })
   }, [])
 
-  if (error) return <div style={{ padding: 20 }}>Error: {error}</div>
-  if (!graph) return <div style={{ padding: 20 }}>Loading...</div>
-
-  const selectedNode = graph.nodes.find((n) => n.id === selectedId) || null
+  if (mode === null) return <div style={{ padding: 20 }}>Loading...</div>
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <div style={{ width: 280, borderRight: '1px solid #e0e0e0' }}>
-        <LayerTree nodes={graph.nodes} selectedId={selectedId} onSelect={setSelectedId} />
-      </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1 }}>
-          <NodeGraph
-            nodes={graph.nodes}
-            edges={graph.edges}
-            metadata={graph.metadata}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <header style={{ padding: '12px 20px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 20 }}>Lumina</h1>
+          {project && <div style={{ fontSize: 12, color: '#666' }}>{project.name}</div>}
         </div>
-      </div>
-      <div style={{ width: 320, borderLeft: '1px solid #e0e0e0' }}>
-        <DetailPanel node={selectedNode} stats={stats} />
+        {mode === 'project' && (
+          <button onClick={() => setMode('model')}>Model View</button>
+        )}
+        {mode === 'model' && (
+          <button onClick={() => setMode('project')}>Data View</button>
+        )}
+      </header>
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {mode === 'project' ? <DataPanel /> : <ModelPanel />}
       </div>
     </div>
   )
