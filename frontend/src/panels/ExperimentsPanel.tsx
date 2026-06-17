@@ -20,7 +20,7 @@ export default function ExperimentsPanel() {
     fetchRuns()
       .then((rs) => {
         setRuns(rs)
-        if (rs.length > 0) setSelectedRunId(rs[0].id)
+        setSelectedRunId((current) => (current === null && rs.length > 0 ? rs[0].id : current))
       })
       .catch((err) => setError(err.message))
   }, [])
@@ -69,14 +69,16 @@ export default function ExperimentsPanel() {
         fetchMetrics(runId, filter),
         fetchCheckpoints(runId),
       ])
-      if (isStale()) return
-      setMetrics(updatedMetrics)
-      setCheckpoints(updatedCheckpoints)
+      if (!isStale()) {
+        setMetrics(updatedMetrics)
+        setCheckpoints(updatedCheckpoints)
+      }
     } catch (err: any) {
-      if (isStale()) return
-      setError(err.message)
+      if (!isStale()) {
+        setError(err.message)
+      }
     } finally {
-      if (!isStale()) setLoading(false)
+      setLoading(false)
     }
   }
 
