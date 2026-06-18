@@ -280,7 +280,7 @@ class PredictionRepository:
                 p["sample_id"],
                 p["true_value"],
                 p["pred_value"],
-                p["confidence"],
+                p.get("confidence"),
                 p["is_correct"],
             )
             for p in predictions

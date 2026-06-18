@@ -75,6 +75,31 @@ def test_create_evaluation_with_predictions(tmp_path):
     assert stored[1]["is_correct"] == 0
 
 
+def test_create_evaluation_with_predictions_without_confidence(tmp_path):
+    _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
+    _create_run(run_repo)
+
+    predictions = [
+        {"sample_id": "s1", "true_value": "0", "pred_value": "0", "is_correct": 1},
+        {"sample_id": "s2", "true_value": "1", "pred_value": "0", "is_correct": 0},
+    ]
+    evaluation = eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id="run-1",
+        dataset_id=None,
+        name="no-conf",
+        task_type="classification",
+        predictions_path="/tmp/no_conf.csv",
+        metrics_json='{"accuracy": 0.5}',
+        predictions=predictions,
+    )
+
+    preds = PredictionRepository(_conn).list_by_evaluation(evaluation["id"])
+    assert len(preds) == 2
+    assert preds[0]["confidence"] is None
+    assert preds[1]["confidence"] is None
+
+
 def test_get_evaluation(tmp_path):
     _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
     _create_run(run_repo)
@@ -144,6 +169,9 @@ def test_list_by_run(tmp_path):
 
     results = eval_repo.list_by_run("run-a")
     assert [r["id"] for r in results] == ["eval-a2", "eval-a1"]
+
+    # Exclusion check: unrelated run's evaluation is not included.
+    assert not any(r["id"] == "eval-b1" for r in results)
 
 
 def test_delete_evaluation_cascades_predictions(tmp_path):
@@ -294,17 +322,23 @@ def test_list_by_dataset(tmp_path):
     project = projects.create(name="test-project", path="/tmp/proj")
 
     datasets = DatasetRepository(_conn)
-    dataset = datasets.create(
+    dataset1 = datasets.create(
         project_id=project["id"],
-        name="ds",
-        path="/tmp/ds.csv",
+        name="ds1",
+        path="/tmp/ds1.csv",
+        adapter_type="csv",
+    )
+    dataset2 = datasets.create(
+        project_id=project["id"],
+        name="ds2",
+        path="/tmp/ds2.csv",
         adapter_type="csv",
     )
 
     e1 = eval_repo.create(
         evaluation_id=str(uuid.uuid4()),
         run_id="run-1",
-        dataset_id=dataset["id"],
+        dataset_id=dataset1["id"],
         name="eval1",
         task_type="classification",
         predictions_path="/tmp/e1.csv",
@@ -313,14 +347,23 @@ def test_list_by_dataset(tmp_path):
     eval_repo.create(
         evaluation_id=str(uuid.uuid4()),
         run_id="run-1",
-        dataset_id=None,
+        dataset_id=dataset2["id"],
         name="eval2",
         task_type="classification",
         predictions_path="/tmp/e2.csv",
         metrics_json='{"accuracy": 0.9}',
     )
+    eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id="run-1",
+        dataset_id=None,
+        name="eval3",
+        task_type="classification",
+        predictions_path="/tmp/e3.csv",
+        metrics_json='{"accuracy": 0.95}',
+    )
 
-    results = eval_repo.list_by_dataset(dataset["id"])
+    results = eval_repo.list_by_dataset(dataset1["id"])
     assert len(results) == 1
     assert results[0]["id"] == e1["id"]
 
@@ -329,21 +372,33 @@ def test_list_by_project(tmp_path):
     _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
 
     projects = ProjectRepository(_conn)
-    project = projects.create(name="proj", path="/tmp/proj")
+    project1 = projects.create(name="proj1", path="/tmp/proj1")
+    project2 = projects.create(name="proj2", path="/tmp/proj2")
 
-    run_id = str(uuid.uuid4())
-    run_repo.create(run_id=run_id, project_id=project["id"], name="test", source="sdk")
+    run1_id = str(uuid.uuid4())
+    run2_id = str(uuid.uuid4())
+    run_repo.create(run_id=run1_id, project_id=project1["id"], name="test1", source="sdk")
+    run_repo.create(run_id=run2_id, project_id=project2["id"], name="test2", source="sdk")
 
     e1 = eval_repo.create(
         evaluation_id=str(uuid.uuid4()),
-        run_id=run_id,
+        run_id=run1_id,
         dataset_id=None,
         name="eval1",
         task_type="classification",
         predictions_path="/tmp/e1.csv",
         metrics_json='{"accuracy": 0.8}',
     )
+    eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id=run2_id,
+        dataset_id=None,
+        name="eval2",
+        task_type="classification",
+        predictions_path="/tmp/e2.csv",
+        metrics_json='{"accuracy": 0.9}',
+    )
 
-    results = eval_repo.list_by_project(project["id"])
+    results = eval_repo.list_by_project(project1["id"])
     assert len(results) == 1
     assert results[0]["id"] == e1["id"]
