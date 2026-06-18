@@ -118,8 +118,8 @@ def test_delete_evaluation_endpoint(tmp_path, monkeypatch):
     assert res.status_code == 404
 
     res = client.delete("/api/evaluations/missing")
-    assert res.status_code == 200
-    assert res.json() == {"deleted": False}
+    assert res.status_code == 404
+    assert res.json()["detail"] == "Evaluation not found"
 
 
 def test_evaluation_endpoints_require_project(tmp_path, monkeypatch):
@@ -162,3 +162,39 @@ def test_create_evaluation_rejects_missing_predictions_file(tmp_path, monkeypatc
         },
     )
     assert res.status_code == 400
+
+
+def test_create_evaluation_rejects_missing_run(tmp_path, monkeypatch):
+    project, _, _ = _setup_project(tmp_path, monkeypatch)
+    app = create_app(project=project)
+    client = TestClient(app)
+
+    res = client.post("/api/evaluations", json={
+        "run_id": "missing-run",
+        "predictions_path": str(tmp_path / "pred.csv"),
+    })
+    assert res.status_code == 400
+
+
+def test_create_evaluation_rejects_malformed_csv(tmp_path, monkeypatch):
+    project, run, _ = _setup_project(tmp_path, monkeypatch)
+    bad_csv = tmp_path / "bad.csv"
+    bad_csv.write_text("id,true\n0,0\n")
+
+    app = create_app(project=project)
+    client = TestClient(app)
+
+    res = client.post("/api/evaluations", json={
+        "run_id": run["id"],
+        "predictions_path": str(bad_csv),
+    })
+    assert res.status_code == 400
+
+
+def test_delete_missing_evaluation_returns_404(tmp_path, monkeypatch):
+    project, _, _ = _setup_project(tmp_path, monkeypatch)
+    app = create_app(project=project)
+    client = TestClient(app)
+
+    res = client.delete("/api/evaluations/missing-id")
+    assert res.status_code == 404

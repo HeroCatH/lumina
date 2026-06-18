@@ -1,6 +1,6 @@
 import mimetypes
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -21,7 +21,7 @@ class CreateEvaluationRequest(BaseModel):
     predictions_path: str
     dataset_id: Optional[str] = Field(None)
     name: Optional[str] = Field(None)
-    task_type: Optional[str] = Field(None)
+    task_type: Optional[Literal["classification", "regression"]] = Field(None)
 
 
 def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -> FastAPI:
@@ -135,8 +135,10 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
     def delete_evaluation(evaluation_id: str) -> dict:
         if project is None:
             raise HTTPException(status_code=404, detail="No project loaded")
-        deleted = project.experiments.evaluations.delete(evaluation_id)
-        return {"deleted": deleted}
+        if project.experiments.evaluations.get(evaluation_id) is None:
+            raise HTTPException(status_code=404, detail="Evaluation not found")
+        project.experiments.evaluations.delete(evaluation_id)
+        return {"deleted": True}
 
     @app.post("/api/projects/{project_id}/logs")
     def register_log_dir(project_id: str, log_dir: str, name: Optional[str] = None) -> dict:
