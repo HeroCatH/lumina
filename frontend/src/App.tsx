@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { fetchCurrentProject } from './hooks/useApi'
 import DataPanel from './panels/DataPanel'
+import EvaluatePanel from './panels/EvaluatePanel'
 import ExperimentsPanel from './panels/ExperimentsPanel'
 import ModelPanel from './panels/ModelPanel'
 
 export default function App() {
-  const [mode, setMode] = useState<'project' | 'model' | 'experiments' | null>(null)
+  const [mode, setMode] = useState<'project' | 'model' | 'experiments' | 'evaluations' | null>(null)
   const [project, setProject] = useState<{ name: string; path: string } | null>(null)
 
   useEffect(() => {
@@ -35,23 +36,41 @@ export default function App() {
           <>
             <button onClick={() => setMode('model')}>Model View</button>
             <button onClick={() => setMode('experiments')}>Experiments</button>
+            <button onClick={() => setMode('evaluations')}>Evaluations</button>
           </>
         )}
         {mode === 'model' && (
           <>
             <button onClick={() => setMode('project')}>Data View</button>
             <button onClick={() => setMode('experiments')}>Experiments</button>
+            <button onClick={() => setMode('evaluations')}>Evaluations</button>
           </>
         )}
         {mode === 'experiments' && (
           <>
             <button onClick={() => setMode('project')}>Data View</button>
             <button onClick={() => setMode('model')}>Model View</button>
+            <button onClick={() => setMode('evaluations')}>Evaluations</button>
+          </>
+        )}
+        {mode === 'evaluations' && (
+          <>
+            <button onClick={() => setMode('project')}>Data View</button>
+            <button onClick={() => setMode('model')}>Model View</button>
+            <button onClick={() => setMode('experiments')}>Experiments</button>
           </>
         )}
       </header>
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {mode === 'project' ? <DataPanel /> : mode === 'experiments' ? <ExperimentsPanel /> : <ModelPanel />}
+        {mode === 'project' ? (
+          <DataPanel />
+        ) : mode === 'experiments' ? (
+          <ExperimentsPanel onEvaluate={() => setMode('evaluations')} />
+        ) : mode === 'evaluations' ? (
+          <EvaluatePanel />
+        ) : (
+          <ModelPanel />
+        )}
       </div>
     </div>
   )

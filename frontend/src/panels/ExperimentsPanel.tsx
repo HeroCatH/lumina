@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchCheckpoints, fetchMetrics, fetchRuns, syncLogs } from '../api'
 import { Checkpoint, Metric, Run } from '../types'
 
-export default function ExperimentsPanel() {
+export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => void }) {
   const [runs, setRuns] = useState<Run[]>([])
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [metrics, setMetrics] = useState<Metric[]>([])
@@ -113,6 +113,7 @@ export default function ExperimentsPanel() {
       <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={handleSync}>Sync logs</button>
+          {onEvaluate && <button onClick={onEvaluate}>Evaluate</button>}
           <select value={metricName} onChange={(e) => setMetricName(e.target.value)}>
             <option value="">All metrics</option>
             {metricNames.map((n) => (
