@@ -16,12 +16,6 @@ export interface ModelGraph {
   metadata: Record<string, any>
 }
 
-export interface Stats {
-  total_params: number
-  trainable_params: number
-  per_node: Record<string, number>
-}
-
 export interface ModelStats {
   params: {
     total_params: number
