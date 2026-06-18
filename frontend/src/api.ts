@@ -1,4 +1,12 @@
-import { ModelGraph, ModelStats, Run, Metric, Checkpoint } from './types'
+import {
+  ModelGraph,
+  ModelStats,
+  Run,
+  Metric,
+  Checkpoint,
+  Evaluation,
+  Prediction,
+} from './types'
 
 export async function fetchGraph(): Promise<ModelGraph> {
   const res = await fetch('/api/graph')
@@ -36,5 +44,49 @@ export async function fetchCheckpoints(runId: string): Promise<Checkpoint[]> {
 export async function syncLogs(runId: string): Promise<{ synced: number }> {
   const res = await fetch(`/api/projects/current/logs/sync?run_id=${runId}`, { method: 'POST' })
   if (!res.ok) throw new Error('Failed to sync logs')
+  return res.json()
+}
+
+export async function fetchEvaluations(runId?: string): Promise<Evaluation[]> {
+  const query = runId ? `?run_id=${runId}` : ''
+  const res = await fetch(`/api/evaluations${query}`)
+  if (!res.ok) throw new Error('Failed to fetch evaluations')
+  return res.json()
+}
+
+export async function fetchEvaluation(
+  id: string,
+  includePredictions: boolean = false,
+): Promise<Evaluation & { predictions?: Prediction[] }> {
+  const query = includePredictions ? '?include_predictions=true' : ''
+  const res = await fetch(`/api/evaluations/${id}${query}`)
+  if (!res.ok) throw new Error('Failed to fetch evaluation')
+  return res.json()
+}
+
+export interface CreateEvaluationBody {
+  run_id: string
+  predictions_path: string
+  dataset_id?: string | null
+  name?: string | null
+  task_type?: 'classification' | 'regression' | null
+}
+
+export async function createEvaluation(body: CreateEvaluationBody): Promise<Evaluation> {
+  const res = await fetch('/api/evaluations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({ detail: 'Failed to create evaluation' }))
+    throw new Error(detail.detail || 'Failed to create evaluation')
+  }
+  return res.json()
+}
+
+export async function deleteEvaluation(id: string): Promise<{ deleted: boolean }> {
+  const res = await fetch(`/api/evaluations/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error('Failed to delete evaluation')
   return res.json()
 }

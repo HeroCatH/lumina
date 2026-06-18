@@ -92,3 +92,41 @@ export interface Checkpoint {
   path: string
   created_at: string
 }
+
+export interface ClassificationMetrics {
+  accuracy: number
+  precision: number
+  recall: number
+  f1: number
+  per_class: Record<string, { precision: number; recall: number; f1: number }>
+  confusion_matrix: Record<string, Record<string, number>>
+}
+
+export interface RegressionMetrics {
+  mae: number
+  rmse: number
+  r2: number | null
+}
+
+export type MetricsJson = ClassificationMetrics | RegressionMetrics
+
+export interface Prediction {
+  id: number
+  evaluation_id: string
+  sample_id: string
+  true_value: string
+  pred_value: string
+  confidence: number | null
+  is_correct: number
+}
+
+export interface Evaluation {
+  id: string
+  run_id: string
+  dataset_id?: string | null
+  name?: string | null
+  task_type: 'classification' | 'regression'
+  predictions_path: string
+  metrics: string
+  created_at: string
+}
