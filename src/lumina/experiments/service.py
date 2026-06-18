@@ -25,32 +25,36 @@ class EvaluationService:
         name: Optional[str] = None,
         task_type: Optional[str] = None,
     ) -> dict:
-        source_path = Path(predictions_path)
-        if not source_path.exists() or not source_path.is_file():
+        source = Path(predictions_path).resolve()
+        if not source.is_file():
             raise ValueError(f"Predictions file does not exist: {predictions_path}")
+
+        run = self._conn.execute("SELECT 1 FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if run is None:
+            raise ValueError(f"Run not found: {run_id}")
 
         evaluation_id = str(uuid.uuid4())
         eval_dir = self._project_path / "evaluations" / evaluation_id
         eval_dir.mkdir(parents=True, exist_ok=True)
 
-        local_predictions_path = eval_dir / "predictions.csv"
-        shutil.copy2(source_path, local_predictions_path)
-
-        loaded = EvaluationLoader.load(local_predictions_path, task_type=task_type)
-
-        if name is None:
-            name = source_path.name
-
-        return self._repo.create(
-            evaluation_id=evaluation_id,
-            run_id=run_id,
-            dataset_id=dataset_id,
-            name=name,
-            task_type=loaded["task_type"],
-            predictions_path=str(local_predictions_path),
-            metrics_json=loaded["metrics"],
-            predictions=loaded["predictions"],
-        )
+        try:
+            local_path = eval_dir / source.name
+            shutil.copy2(source, local_path)
+            loaded = EvaluationLoader.load(local_path, task_type=task_type)
+            evaluation = self._repo.create(
+                evaluation_id=evaluation_id,
+                run_id=run_id,
+                dataset_id=dataset_id,
+                name=name or source.stem,
+                task_type=loaded["task_type"],
+                predictions_path=str(local_path),
+                metrics_json=loaded["metrics"],
+                predictions=loaded["predictions"],
+            )
+            return evaluation
+        except Exception:
+            shutil.rmtree(eval_dir, ignore_errors=True)
+            raise
 
     def get(self, evaluation_id: str, include_predictions: bool = False) -> Optional[dict]:
         evaluation = self._repo.get(evaluation_id)
@@ -67,11 +71,12 @@ class EvaluationService:
         return self._repo.list_by_run(run_id)
 
     def delete(self, evaluation_id: str) -> bool:
-        deleted = self._repo.delete(evaluation_id)
         eval_dir = self._project_path / "evaluations" / evaluation_id
-        if eval_dir.exists():
-            shutil.rmtree(eval_dir)
-        return deleted
+        try:
+            return self._repo.delete(evaluation_id)
+        finally:
+            if eval_dir.exists():
+                shutil.rmtree(eval_dir, ignore_errors=True)
 
 
 class ExperimentService:
