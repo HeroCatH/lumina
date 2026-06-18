@@ -5,6 +5,7 @@ from typing import Literal
 
 
 def _is_numeric(values: list[str]) -> bool:
+    """Return True if every value in ``values`` can be parsed as a float."""
     try:
         [float(v) for v in values]
         return True
@@ -13,6 +14,18 @@ def _is_numeric(values: list[str]) -> bool:
 
 
 def _infer_task_type(true_values: list[str], pred_values: list[str]) -> Literal["classification", "regression"]:
+    """Infer whether the predictions are for classification or regression.
+
+    Heuristic:
+      * If any value is not numeric, treat the task as classification.
+      * If numeric values contain decimals (non-integer), treat the task as regression.
+      * If all numeric values are integers with at most 20 unique values,
+        treat the task as classification.
+      * Otherwise (more than 20 unique integer values), treat the task as regression.
+
+    This heuristic is simple and may misclassify ambiguous cases. Callers should
+    pass ``task_type`` explicitly when the data type is known.
+    """
     combined = true_values + pred_values
     if not _is_numeric(combined):
         return "classification"
@@ -26,6 +39,7 @@ def _infer_task_type(true_values: list[str], pred_values: list[str]) -> Literal[
 
 
 def _compute_classification_metrics(true_values: list[str], pred_values: list[str]) -> dict:
+    """Compute accuracy, macro precision/recall/F1, per-class metrics and a confusion matrix."""
     from collections import Counter
 
     correct = sum(1 for t, p in zip(true_values, pred_values) if t == p)
@@ -64,6 +78,11 @@ def _compute_classification_metrics(true_values: list[str], pred_values: list[st
 
 
 def _compute_regression_metrics(true_values: list[str], pred_values: list[str]) -> dict:
+    """Compute MAE, RMSE and R² for regression predictions.
+
+    Returns ``None`` for R² when the ground truth is constant (``ss_tot == 0``),
+    since the score is undefined in that case.
+    """
     y_true = [float(v) for v in true_values]
     y_pred = [float(v) for v in pred_values]
     n = len(y_true)
@@ -73,7 +92,7 @@ def _compute_regression_metrics(true_values: list[str], pred_values: list[str]) 
     mean_true = sum(y_true) / n
     ss_res = sum((yt - yp) ** 2 for yt, yp in zip(y_true, y_pred))
     ss_tot = sum((yt - mean_true) ** 2 for yt in y_true)
-    r2 = 1 - ss_res / ss_tot if ss_tot else 0.0
+    r2 = None if ss_tot == 0 else 1 - ss_res / ss_tot
     return {
         "mae": mae,
         "rmse": rmse,
@@ -86,6 +105,17 @@ class EvaluationLoader:
 
     @classmethod
     def load(cls, path: Path, task_type: str | None = None) -> dict:
+        """Load a prediction CSV and return task type, metrics and per-sample predictions.
+
+        The CSV must contain ``id``, ``true`` and ``pred`` columns. An optional
+        ``confidence`` column is supported; non-numeric confidence values are
+        returned as ``None`` instead of raising.
+
+        Args:
+            path: Path to the CSV file.
+            task_type: Optional override (``"classification"`` or ``"regression"``).
+                       When omitted, the task type is inferred from the values.
+        """
         with open(path, "r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             if not reader.fieldnames:
@@ -110,11 +140,19 @@ class EvaluationLoader:
 
         predictions = []
         for i, row in enumerate(rows):
+            confidence_value = confidences[i]
+            parsed_confidence = None
+            if confidence_value not in (None, ""):
+                try:
+                    parsed_confidence = float(confidence_value)
+                except ValueError:
+                    parsed_confidence = None
+
             predictions.append({
                 "sample_id": ids[i],
                 "true_value": true_values[i],
                 "pred_value": pred_values[i],
-                "confidence": float(confidences[i]) if confidences[i] not in (None, "") else None,
+                "confidence": parsed_confidence,
                 "is_correct": int(true_values[i] == pred_values[i]),
             })
 

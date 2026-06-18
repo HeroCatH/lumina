@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from lumina.experiments.evaluation_loader import EvaluationLoader
 
 
@@ -11,9 +13,16 @@ def test_classification_metrics(tmp_path):
     result = EvaluationLoader.load(csv)
     assert result["task_type"] == "classification"
     metrics = json.loads(result["metrics"])
-    assert "accuracy" in metrics
     assert metrics["accuracy"] == 0.5
+    assert metrics["precision"] == 0.5
+    assert metrics["recall"] == 0.5
+    assert metrics["f1"] == 0.5
+    assert "confusion_matrix" in metrics
+    assert metrics["confusion_matrix"]["cat"]["cat"] == 1
     assert len(result["predictions"]) == 4
+    assert result["predictions"][0]["is_correct"] == 1
+    assert result["predictions"][1]["is_correct"] == 0
+    assert result["predictions"][0]["confidence"] == 0.9
 
 
 def test_regression_metrics(tmp_path):
@@ -25,4 +34,36 @@ def test_regression_metrics(tmp_path):
     metrics = json.loads(result["metrics"])
     assert "mae" in metrics
     assert "rmse" in metrics
-    assert "r2" in metrics
+    assert metrics["r2"] is not None
+
+
+def test_task_type_override(tmp_path):
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,true,pred\n0,1,2\n1,2,3\n")
+
+    result = EvaluationLoader.load(csv, task_type="regression")
+    assert result["task_type"] == "regression"
+
+
+def test_invalid_task_type(tmp_path):
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,true,pred\n0,1,2\n")
+
+    with pytest.raises(ValueError, match="Unsupported task_type"):
+        EvaluationLoader.load(csv, task_type="unknown")
+
+
+def test_missing_columns(tmp_path):
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,pred\n0,cat\n")
+
+    with pytest.raises(ValueError, match="Missing required columns"):
+        EvaluationLoader.load(csv)
+
+
+def test_confidence_tolerates_invalid_value(tmp_path):
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,true,pred,confidence\n0,cat,cat,high\n")
+
+    result = EvaluationLoader.load(csv)
+    assert result["predictions"][0]["confidence"] is None
