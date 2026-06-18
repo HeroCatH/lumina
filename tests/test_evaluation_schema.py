@@ -19,3 +19,13 @@ def test_evaluation_schema_is_created(tmp_path):
 
     pred_cols = {row[1] for row in conn.execute("PRAGMA table_info(predictions)").fetchall()}
     assert {"evaluation_id", "sample_id", "true_value", "pred_value", "confidence", "is_correct"} <= pred_cols
+
+    indexes = {
+        row["name"]
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index'"
+        ).fetchall()
+    }
+    assert "idx_predictions_evaluation" in indexes
+    assert "idx_evaluations_run" in indexes
+    assert "idx_evaluations_dataset" in indexes

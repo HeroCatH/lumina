@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS evaluations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_evaluations_run ON evaluations(run_id);
+CREATE INDEX IF NOT EXISTS idx_evaluations_dataset ON evaluations(dataset_id);
+
 CREATE TABLE IF NOT EXISTS predictions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     evaluation_id TEXT NOT NULL REFERENCES evaluations(id) ON DELETE CASCADE,
