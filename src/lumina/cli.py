@@ -239,6 +239,32 @@ def _handle_model_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def _format_metrics(metrics_json: str) -> str:
+    try:
+        metrics = json.loads(metrics_json)
+    except (json.JSONDecodeError, TypeError):
+        return metrics_json
+    if isinstance(metrics, dict):
+        if "accuracy" in metrics:
+            return f"accuracy={metrics['accuracy']:.4f}"
+        if "mae" in metrics:
+            return f"mae={metrics['mae']:.4f}"
+    return str(metrics)
+
+
+def _primary_metric(metrics_json: str) -> str:
+    try:
+        metrics = json.loads(metrics_json)
+    except (json.JSONDecodeError, TypeError):
+        return ""
+    if isinstance(metrics, dict):
+        if "accuracy" in metrics:
+            return f"accuracy={metrics['accuracy']:.4f}"
+        if "mae" in metrics:
+            return f"mae={metrics['mae']:.4f}"
+    return ""
+
+
 def _handle_eval_create(args: argparse.Namespace) -> int:
     from lumina.core.project_manager import ProjectManager
 
@@ -252,15 +278,9 @@ def _handle_eval_create(args: argparse.Namespace) -> int:
             name=args.name,
             task_type=args.task_type,
         )
-        metrics = json.loads(evaluation["metrics"])
-        if evaluation["task_type"] == "classification":
-            metric_summary = f"accuracy={metrics.get('accuracy')}"
-        elif evaluation["task_type"] == "regression":
-            metric_summary = f"mae={metrics.get('mae')}"
-        else:
-            metric_summary = ""
+        metric_summary = _format_metrics(evaluation["metrics"])
         print(
-            f"Created evaluation: {evaluation['id']} ({evaluation['name']}) "
+            f"Created evaluation: {evaluation['id']} ({evaluation.get('name', '')}) "
             f"[{evaluation['task_type']}] {metric_summary}"
         )
         return 0
@@ -283,9 +303,10 @@ def _handle_eval_list(args: argparse.Namespace) -> int:
         else:
             evaluations = project.experiments.evaluations.list_by_project(project.id)
         for evaluation in evaluations:
+            metric = _primary_metric(evaluation["metrics"])
             print(
-                f"{evaluation['id']}\t{evaluation['name']}\t"
-                f"{evaluation['task_type']}\t{evaluation['created_at']}"
+                f"{evaluation['id']}\t{evaluation.get('name', '')}\t"
+                f"{evaluation['task_type']}\t{metric}\t{evaluation['created_at']}"
             )
         return 0
     except ValueError as exc:
