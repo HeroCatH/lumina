@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 
 import pytest
@@ -112,7 +111,6 @@ def test_list_by_run(tmp_path):
         predictions_path="/tmp/preds.json",
         metrics_json='{}',
     )
-    time.sleep(1.1)
     eval_repo.create(
         evaluation_id="eval-a2",
         run_id="run-a",
@@ -131,6 +129,17 @@ def test_list_by_run(tmp_path):
         predictions_path="/tmp/preds.json",
         metrics_json='{}',
     )
+
+    # Force deterministic ordering without sleeping.
+    _conn.execute(
+        "UPDATE evaluations SET created_at = ? WHERE id = ?",
+        ("2026-01-01 00:00:00", "eval-a1"),
+    )
+    _conn.execute(
+        "UPDATE evaluations SET created_at = ? WHERE id = ?",
+        ("2026-01-02 00:00:00", "eval-a2"),
+    )
+    _conn.commit()
 
     results = eval_repo.list_by_run("run-a")
     assert [r["id"] for r in results] == ["eval-a2", "eval-a1"]

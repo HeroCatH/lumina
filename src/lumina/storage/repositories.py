@@ -198,7 +198,7 @@ class EvaluationRepository:
             (evaluation_id, run_id, dataset_id, name, task_type, predictions_path, metrics_json),
         )
         if predictions:
-            self._predictions.create_many(evaluation_id, predictions)
+            self._predictions._insert_many(evaluation_id, predictions)
         self._conn.commit()
         row = self._conn.execute("SELECT * FROM evaluations WHERE id = ?", (evaluation_id,)).fetchone()
         return dict(row)
@@ -251,7 +251,7 @@ class PredictionRepository:
         row = self._conn.execute("SELECT * FROM predictions WHERE id = ?", (cur.lastrowid,)).fetchone()
         return dict(row)
 
-    def create_many(self, evaluation_id: str, predictions: list[dict]) -> int:
+    def _insert_many(self, evaluation_id: str, predictions: list[dict]) -> int:
         params = [
             (
                 evaluation_id,
@@ -270,8 +270,12 @@ class PredictionRepository:
             """,
             params,
         )
-        self._conn.commit()
         return len(params)
+
+    def create_many(self, evaluation_id: str, predictions: list[dict]) -> int:
+        count = self._insert_many(evaluation_id, predictions)
+        self._conn.commit()
+        return count
 
     def list_by_evaluation(self, evaluation_id: str) -> list[dict]:
         rows = self._conn.execute(
