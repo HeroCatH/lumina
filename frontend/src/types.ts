@@ -130,3 +130,11 @@ export interface Evaluation {
   metrics: string
   created_at: string
 }
+
+export interface CreateEvaluationBody {
+  run_id: string
+  predictions_path: string
+  dataset_id?: string | null
+  name?: string | null
+  task_type?: 'classification' | 'regression' | null
+}

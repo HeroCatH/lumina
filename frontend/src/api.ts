@@ -6,7 +6,17 @@ import {
   Checkpoint,
   Evaluation,
   Prediction,
+  CreateEvaluationBody,
 } from './types'
+
+async function apiError(res: Response, fallback: string): Promise<Error> {
+  try {
+    const body = await res.json()
+    return new Error(body.detail || fallback)
+  } catch {
+    return new Error(fallback)
+  }
+}
 
 export async function fetchGraph(): Promise<ModelGraph> {
   const res = await fetch('/api/graph')
@@ -48,8 +58,10 @@ export async function syncLogs(runId: string): Promise<{ synced: number }> {
 }
 
 export async function fetchEvaluations(runId?: string): Promise<Evaluation[]> {
-  const query = runId ? `?run_id=${runId}` : ''
-  const res = await fetch(`/api/evaluations${query}`)
+  const params = new URLSearchParams()
+  if (runId) params.append('run_id', runId)
+  const query = params.toString()
+  const res = await fetch(`/api/evaluations${query ? `?${query}` : ''}`)
   if (!res.ok) throw new Error('Failed to fetch evaluations')
   return res.json()
 }
@@ -64,29 +76,18 @@ export async function fetchEvaluation(
   return res.json()
 }
 
-export interface CreateEvaluationBody {
-  run_id: string
-  predictions_path: string
-  dataset_id?: string | null
-  name?: string | null
-  task_type?: 'classification' | 'regression' | null
-}
-
 export async function createEvaluation(body: CreateEvaluationBody): Promise<Evaluation> {
   const res = await fetch('/api/evaluations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({ detail: 'Failed to create evaluation' }))
-    throw new Error(detail.detail || 'Failed to create evaluation')
-  }
+  if (!res.ok) throw await apiError(res, 'Failed to create evaluation')
   return res.json()
 }
 
 export async function deleteEvaluation(id: string): Promise<{ deleted: boolean }> {
   const res = await fetch(`/api/evaluations/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error('Failed to delete evaluation')
+  if (!res.ok) throw await apiError(res, 'Failed to delete evaluation')
   return res.json()
 }
