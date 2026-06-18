@@ -130,5 +130,5 @@ export interface CreateEvaluationBody {
   predictions_path: string
   dataset_id?: string | null
   name?: string | null
-  task_type?: 'classification' | 'regression' | null
+  task_type?: 'classification' | 'regression'
 }

@@ -7,15 +7,37 @@ import {
   Evaluation,
   Prediction,
   CreateEvaluationBody,
+  MetricsJson,
 } from './types'
 
 async function apiError(res: Response, fallback: string): Promise<Error> {
   try {
     const body = await res.json()
-    return new Error(body.detail || fallback)
+    const detail = body.detail
+    if (typeof detail === 'string') return new Error(detail)
+    if (Array.isArray(detail)) return new Error(detail.map((d: any) => d.msg || JSON.stringify(d)).join('; '))
+    if (detail) return new Error(JSON.stringify(detail))
+    return new Error(fallback)
   } catch {
     return new Error(fallback)
   }
+}
+
+function buildUrl(path: string, params?: URLSearchParams): string {
+  if (!params || params.toString() === '') return path
+  return `${path}?${params.toString()}`
+}
+
+export function parseMetrics(metricsJson: string): MetricsJson | null {
+  try {
+    const parsed = JSON.parse(metricsJson)
+    if (parsed && typeof parsed === 'object') {
+      return parsed as MetricsJson
+    }
+  } catch {
+    // ignore
+  }
+  return null
 }
 
 export async function fetchGraph(): Promise<ModelGraph> {
@@ -27,8 +49,7 @@ export async function fetchGraph(): Promise<ModelGraph> {
 export async function fetchStats(inputShape?: number[]): Promise<ModelStats> {
   const params = new URLSearchParams()
   if (inputShape) params.append('input_shape', inputShape.join(','))
-  const query = params.toString()
-  const res = await fetch(`/api/stats${query ? `?${query}` : ''}`)
+  const res = await fetch(buildUrl('/api/stats', params))
   if (!res.ok) throw await apiError(res, 'Failed to fetch stats')
   return res.json()
 }
@@ -64,8 +85,7 @@ export async function syncLogs(runId: string): Promise<{ synced: number }> {
 export async function fetchEvaluations(runId?: string): Promise<Evaluation[]> {
   const params = new URLSearchParams()
   if (runId) params.append('run_id', runId)
-  const query = params.toString()
-  const res = await fetch(`/api/evaluations${query ? `?${query}` : ''}`)
+  const res = await fetch(buildUrl('/api/evaluations', params))
   if (!res.ok) throw await apiError(res, 'Failed to fetch evaluations')
   return res.json()
 }
@@ -76,8 +96,7 @@ export async function fetchEvaluation(
 ): Promise<Evaluation & { predictions?: Prediction[] }> {
   const params = new URLSearchParams()
   if (includePredictions) params.append('include_predictions', 'true')
-  const query = params.toString()
-  const res = await fetch(`/api/evaluations/${id}${query ? `?${query}` : ''}`)
+  const res = await fetch(buildUrl(`/api/evaluations/${id}`, params))
   if (!res.ok) throw await apiError(res, 'Failed to fetch evaluation')
   return res.json()
 }
