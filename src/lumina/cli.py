@@ -239,30 +239,22 @@ def _handle_model_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
-def _format_metrics(metrics_json: str) -> str:
+def _parse_metrics(metrics_json: str) -> dict:
     try:
-        metrics = json.loads(metrics_json)
+        return json.loads(metrics_json)
     except (json.JSONDecodeError, TypeError):
-        return metrics_json
-    if isinstance(metrics, dict):
-        if "accuracy" in metrics:
-            return f"accuracy={metrics['accuracy']:.4f}"
-        if "mae" in metrics:
-            return f"mae={metrics['mae']:.4f}"
+        return {}
+
+
+def _metrics_summary(metrics_json: str) -> str:
+    metrics = _parse_metrics(metrics_json)
+    if not isinstance(metrics, dict):
+        return str(metrics_json)
+    if "accuracy" in metrics:
+        return f"accuracy={metrics['accuracy']:.4f}"
+    if "mae" in metrics:
+        return f"mae={metrics['mae']:.4f}"
     return str(metrics)
-
-
-def _primary_metric(metrics_json: str) -> str:
-    try:
-        metrics = json.loads(metrics_json)
-    except (json.JSONDecodeError, TypeError):
-        return ""
-    if isinstance(metrics, dict):
-        if "accuracy" in metrics:
-            return f"accuracy={metrics['accuracy']:.4f}"
-        if "mae" in metrics:
-            return f"mae={metrics['mae']:.4f}"
-    return ""
 
 
 def _handle_eval_create(args: argparse.Namespace) -> int:
@@ -271,6 +263,9 @@ def _handle_eval_create(args: argparse.Namespace) -> int:
     try:
         manager = ProjectManager()
         project = manager.open(args.project)
+        if project.experiments.runs.get(args.run_id) is None:
+            print(f"Error: Run not found: {args.run_id}", file=sys.stderr)
+            return 1
         evaluation = project.experiments.evaluations.create(
             run_id=args.run_id,
             predictions_path=args.predictions_path,
@@ -278,10 +273,9 @@ def _handle_eval_create(args: argparse.Namespace) -> int:
             name=args.name,
             task_type=args.task_type,
         )
-        metric_summary = _format_metrics(evaluation["metrics"])
         print(
             f"Created evaluation: {evaluation['id']} ({evaluation.get('name', '')}) "
-            f"[{evaluation['task_type']}] {metric_summary}"
+            f"[{evaluation['task_type']}] {_metrics_summary(evaluation['metrics'])}"
         )
         return 0
     except ValueError as exc:
@@ -303,10 +297,10 @@ def _handle_eval_list(args: argparse.Namespace) -> int:
         else:
             evaluations = project.experiments.evaluations.list_by_project(project.id)
         for evaluation in evaluations:
-            metric = _primary_metric(evaluation["metrics"])
             print(
                 f"{evaluation['id']}\t{evaluation.get('name', '')}\t"
-                f"{evaluation['task_type']}\t{metric}\t{evaluation['created_at']}"
+                f"{evaluation['task_type']}\t{_metrics_summary(evaluation['metrics'])}\t"
+                f"{evaluation['created_at']}"
             )
         return 0
     except ValueError as exc:
