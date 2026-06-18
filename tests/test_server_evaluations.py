@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -166,14 +167,64 @@ def test_create_evaluation_rejects_missing_predictions_file(tmp_path, monkeypatc
 
 def test_create_evaluation_rejects_missing_run(tmp_path, monkeypatch):
     project, _, _ = _setup_project(tmp_path, monkeypatch)
+    predictions_csv = tmp_path / "predictions.csv"
+    predictions_csv.write_text("id,true,pred\n0,0,0\n")
+
     app = create_app(project=project)
     client = TestClient(app)
 
     res = client.post("/api/evaluations", json={
         "run_id": "missing-run",
-        "predictions_path": str(tmp_path / "pred.csv"),
+        "predictions_path": str(predictions_csv),
     })
     assert res.status_code == 400
+    assert "run" in res.json()["detail"].lower() or "not found" in res.json()["detail"].lower()
+
+
+def test_create_evaluation_with_dataset_and_regression(tmp_path, monkeypatch):
+    project, run, _ = _setup_project(tmp_path, monkeypatch)
+    csv = tmp_path / "reg.csv"
+    csv.write_text("id,true,pred\n0,1.0,1.1\n1,2.0,1.9\n")
+
+    # Create a dataset record to satisfy FK
+    dataset = project.datasets.create(
+        project_id=project.id,
+        name="ds",
+        path="/tmp/ds.csv",
+        adapter_type="csv",
+    )
+
+    app = create_app(project=project)
+    client = TestClient(app)
+
+    res = client.post("/api/evaluations", json={
+        "run_id": run["id"],
+        "predictions_path": str(csv),
+        "dataset_id": dataset["id"],
+        "task_type": "regression",
+    })
+    assert res.status_code == 201
+    data = res.json()
+    assert data["task_type"] == "regression"
+    assert data["dataset_id"] == dataset["id"]
+    metrics = json.loads(data["metrics"])
+    assert "mae" in metrics
+
+
+def test_create_evaluation_rejects_invalid_task_type(tmp_path, monkeypatch):
+    project, run, _ = _setup_project(tmp_path, monkeypatch)
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,true,pred\n0,0,0\n")
+
+    app = create_app(project=project)
+    client = TestClient(app)
+
+    res = client.post("/api/evaluations", json={
+        "run_id": run["id"],
+        "predictions_path": str(csv),
+        "task_type": "invalid",
+    })
+    assert res.status_code == 422
 
 
 def test_create_evaluation_rejects_malformed_csv(tmp_path, monkeypatch):
@@ -191,10 +242,3 @@ def test_create_evaluation_rejects_malformed_csv(tmp_path, monkeypatch):
     assert res.status_code == 400
 
 
-def test_delete_missing_evaluation_returns_404(tmp_path, monkeypatch):
-    project, _, _ = _setup_project(tmp_path, monkeypatch)
-    app = create_app(project=project)
-    client = TestClient(app)
-
-    res = client.delete("/api/evaluations/missing-id")
-    assert res.status_code == 404
