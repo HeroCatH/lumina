@@ -7,7 +7,7 @@ from lumina.storage.db import get_db, init_schema
 from lumina.storage.repositories import DatasetRepository, EvaluationRepository, PredictionRepository, ProjectRepository, RunRepository
 
 
-def _db(tmp_path: Path) -> tuple:
+def make_db(tmp_path: Path) -> tuple:
     db_path = tmp_path / "test.db"
     conn = get_db(db_path)
     init_schema(conn)
@@ -22,7 +22,7 @@ def _create_run(run_repo: RunRepository, run_id: str = "run-1") -> dict:
 
 
 def test_create_evaluation_without_predictions(tmp_path):
-    _conn, run_repo, eval_repo, _pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-1"
@@ -47,7 +47,7 @@ def test_create_evaluation_without_predictions(tmp_path):
 
 
 def test_create_evaluation_with_predictions(tmp_path):
-    _conn, run_repo, eval_repo, pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-2"
@@ -76,7 +76,7 @@ def test_create_evaluation_with_predictions(tmp_path):
 
 
 def test_get_evaluation(tmp_path):
-    _conn, run_repo, eval_repo, _pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-get"
@@ -99,7 +99,7 @@ def test_get_evaluation(tmp_path):
 
 
 def test_list_by_run(tmp_path):
-    _conn, run_repo, eval_repo, _pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
     _create_run(run_repo, run_id="run-a")
     _create_run(run_repo, run_id="run-b")
 
@@ -147,7 +147,7 @@ def test_list_by_run(tmp_path):
 
 
 def test_delete_evaluation_cascades_predictions(tmp_path):
-    _conn, run_repo, eval_repo, pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-delete"
@@ -176,7 +176,7 @@ def test_delete_evaluation_cascades_predictions(tmp_path):
 
 
 def test_prediction_create_many_count_accuracy(tmp_path):
-    _conn, run_repo, eval_repo, pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-preds"
@@ -210,7 +210,7 @@ def test_prediction_create_many_count_accuracy(tmp_path):
 
 
 def test_prediction_accuracy_none_when_empty(tmp_path):
-    _conn, run_repo, eval_repo, pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-empty"
@@ -229,7 +229,7 @@ def test_prediction_accuracy_none_when_empty(tmp_path):
 
 
 def test_prediction_create_single(tmp_path):
-    _conn, run_repo, eval_repo, pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-single"
@@ -261,7 +261,7 @@ def test_prediction_create_single(tmp_path):
 
 
 def test_create_evaluation_rolls_back_on_bad_predictions(tmp_path):
-    _conn, run_repo, eval_repo, pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     evaluation_id = "eval-bad-preds"
@@ -287,7 +287,7 @@ def test_create_evaluation_rolls_back_on_bad_predictions(tmp_path):
 
 
 def test_list_by_dataset(tmp_path):
-    _conn, run_repo, eval_repo, _pred_repo = _db(tmp_path)
+    _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
     _create_run(run_repo)
 
     projects = ProjectRepository(_conn)
@@ -321,5 +321,29 @@ def test_list_by_dataset(tmp_path):
     )
 
     results = eval_repo.list_by_dataset(dataset["id"])
+    assert len(results) == 1
+    assert results[0]["id"] == e1["id"]
+
+
+def test_list_by_project(tmp_path):
+    _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
+
+    projects = ProjectRepository(_conn)
+    project = projects.create(name="proj", path="/tmp/proj")
+
+    run_id = str(uuid.uuid4())
+    run_repo.create(run_id=run_id, project_id=project["id"], name="test", source="sdk")
+
+    e1 = eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id=run_id,
+        dataset_id=None,
+        name="eval1",
+        task_type="classification",
+        predictions_path="/tmp/e1.csv",
+        metrics_json='{"accuracy": 0.8}',
+    )
+
+    results = eval_repo.list_by_project(project["id"])
     assert len(results) == 1
     assert results[0]["id"] == e1["id"]

@@ -189,7 +189,7 @@ class EvaluationRepository:
         metrics_json: str,
         predictions: Optional[list[dict]] = None,
     ) -> dict:
-        self._conn.execute("BEGIN")
+        self._conn.execute("SAVEPOINT eval_create")
         try:
             self._conn.execute(
                 """
@@ -200,9 +200,11 @@ class EvaluationRepository:
             )
             if predictions:
                 self._predictions._insert_many(evaluation_id, predictions)
+            self._conn.execute("RELEASE SAVEPOINT eval_create")
             self._conn.commit()
         except Exception:
-            self._conn.rollback()
+            self._conn.execute("ROLLBACK TO SAVEPOINT eval_create")
+            self._conn.execute("RELEASE SAVEPOINT eval_create")
             raise
         return self.get(evaluation_id)
 
@@ -221,6 +223,18 @@ class EvaluationRepository:
         rows = self._conn.execute(
             "SELECT * FROM evaluations WHERE dataset_id = ? ORDER BY created_at DESC",
             (dataset_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_by_project(self, project_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            """
+            SELECT evaluations.* FROM evaluations
+            JOIN runs ON evaluations.run_id = runs.id
+            WHERE runs.project_id = ?
+            ORDER BY evaluations.created_at DESC
+            """,
+            (project_id,),
         ).fetchall()
         return [dict(r) for r in rows]
 
