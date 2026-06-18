@@ -1,4 +1,5 @@
 import argparse
+import json
 from pathlib import Path
 import sys
 from typing import List
@@ -47,6 +48,23 @@ def main(argv: List[str] | None = None) -> int:
     runs_list_parser = runs_sub.add_parser("list", help="List runs")
     runs_list_parser.add_argument("--project", required=True, help="Project name")
 
+    eval_parser = project_sub.add_parser("eval", help="Evaluation management")
+    eval_sub = eval_parser.add_subparsers(dest="eval_command")
+
+    eval_create_parser = eval_sub.add_parser("create", help="Create an evaluation")
+    eval_create_parser.add_argument("predictions_path", help="Path to predictions CSV")
+    eval_create_parser.add_argument("--project", required=True, help="Project name")
+    eval_create_parser.add_argument("--run-id", required=True, help="Run ID")
+    eval_create_parser.add_argument("--dataset-id", help="Dataset ID")
+    eval_create_parser.add_argument("--name", help="Evaluation name")
+    eval_create_parser.add_argument(
+        "--task-type", choices=["classification", "regression"], help="Task type"
+    )
+
+    eval_list_parser = eval_sub.add_parser("list", help="List evaluations")
+    eval_list_parser.add_argument("--project", required=True, help="Project name")
+    eval_list_parser.add_argument("--run-id", help="Run ID")
+
     # lumina data
     data_parser = subparsers.add_parser("data", help="Dataset management")
     data_sub = data_parser.add_subparsers(dest="data_command")
@@ -84,6 +102,11 @@ def main(argv: List[str] | None = None) -> int:
     elif args.command == "project" and args.project_command == "runs":
         if args.runs_command == "list":
             return _handle_runs_list(args)
+    elif args.command == "project" and args.project_command == "eval":
+        if args.eval_command == "create":
+            return _handle_eval_create(args)
+        elif args.eval_command == "list":
+            return _handle_eval_list(args)
     elif args.command == "data" and args.data_command == "add":
         return _handle_data_add(args)
     elif args.command == "model" and args.model_command == "analyze":
@@ -214,6 +237,60 @@ def _handle_model_analyze(args: argparse.Namespace) -> int:
     if "shapes" in stats:
         print(f"Output shape: {stats['shapes']['output_shape']}")
     return 0
+
+
+def _handle_eval_create(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        evaluation = project.experiments.evaluations.create(
+            run_id=args.run_id,
+            predictions_path=args.predictions_path,
+            dataset_id=args.dataset_id,
+            name=args.name,
+            task_type=args.task_type,
+        )
+        metrics = json.loads(evaluation["metrics"])
+        if evaluation["task_type"] == "classification":
+            metric_summary = f"accuracy={metrics.get('accuracy')}"
+        elif evaluation["task_type"] == "regression":
+            metric_summary = f"mae={metrics.get('mae')}"
+        else:
+            metric_summary = ""
+        print(
+            f"Created evaluation: {evaluation['id']} ({evaluation['name']}) "
+            f"[{evaluation['task_type']}] {metric_summary}"
+        )
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_eval_list(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        if args.run_id:
+            run = project.experiments.runs.get(args.run_id)
+            if run is None:
+                raise ValueError(f"Run not found: {args.run_id}")
+            evaluations = project.experiments.evaluations.list_by_run(args.run_id)
+        else:
+            evaluations = project.experiments.evaluations.list_by_project(project.id)
+        for evaluation in evaluations:
+            print(
+                f"{evaluation['id']}\t{evaluation['name']}\t"
+                f"{evaluation['task_type']}\t{evaluation['created_at']}"
+            )
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
