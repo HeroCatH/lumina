@@ -2,9 +2,10 @@ import mimetypes
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from lumina.analyzers.aggregate import aggregate_analysis
 from lumina.core.project import Project
@@ -13,6 +14,14 @@ from lumina.loaders import load_model
 
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+
+class CreateEvaluationRequest(BaseModel):
+    run_id: str
+    predictions_path: str
+    dataset_id: Optional[str] = Field(None)
+    name: Optional[str] = Field(None)
+    task_type: Optional[str] = Field(None)
 
 
 def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -> FastAPI:
@@ -86,6 +95,48 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
             filename=file_path.name,
             media_type=mimetypes.guess_type(str(file_path))[0] or "application/octet-stream",
         )
+
+    @app.get("/api/evaluations")
+    def list_evaluations(run_id: Optional[str] = Query(None)) -> list[dict]:
+        if project is None:
+            raise HTTPException(status_code=404, detail="No project loaded")
+        if run_id is not None and project.experiments.runs.get(run_id) is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run_id is not None:
+            return project.experiments.evaluations.list_by_run(run_id)
+        return project.experiments.evaluations.list_by_project(project.id)
+
+    @app.post("/api/evaluations", status_code=201)
+    def create_evaluation(payload: CreateEvaluationRequest = Body(...)) -> dict:
+        if project is None:
+            raise HTTPException(status_code=404, detail="No project loaded")
+        try:
+            evaluation = project.experiments.evaluations.create(
+                run_id=payload.run_id,
+                predictions_path=payload.predictions_path,
+                dataset_id=payload.dataset_id,
+                name=payload.name,
+                task_type=payload.task_type,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return evaluation
+
+    @app.get("/api/evaluations/{evaluation_id}")
+    def get_evaluation(evaluation_id: str, include_predictions: bool = Query(False)) -> dict:
+        if project is None:
+            raise HTTPException(status_code=404, detail="No project loaded")
+        evaluation = project.experiments.evaluations.get(evaluation_id, include_predictions=include_predictions)
+        if evaluation is None:
+            raise HTTPException(status_code=404, detail="Evaluation not found")
+        return evaluation
+
+    @app.delete("/api/evaluations/{evaluation_id}")
+    def delete_evaluation(evaluation_id: str) -> dict:
+        if project is None:
+            raise HTTPException(status_code=404, detail="No project loaded")
+        deleted = project.experiments.evaluations.delete(evaluation_id)
+        return {"deleted": deleted}
 
     @app.post("/api/projects/{project_id}/logs")
     def register_log_dir(project_id: str, log_dir: str, name: Optional[str] = None) -> dict:
