@@ -1,6 +1,5 @@
 import sqlite3
 import uuid
-from pathlib import Path
 from typing import Optional
 
 
@@ -190,18 +189,22 @@ class EvaluationRepository:
         metrics_json: str,
         predictions: Optional[list[dict]] = None,
     ) -> dict:
-        self._conn.execute(
-            """
-            INSERT INTO evaluations (id, run_id, dataset_id, name, task_type, predictions_path, metrics)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (evaluation_id, run_id, dataset_id, name, task_type, predictions_path, metrics_json),
-        )
-        if predictions:
-            self._predictions._insert_many(evaluation_id, predictions)
-        self._conn.commit()
-        row = self._conn.execute("SELECT * FROM evaluations WHERE id = ?", (evaluation_id,)).fetchone()
-        return dict(row)
+        self._conn.execute("BEGIN")
+        try:
+            self._conn.execute(
+                """
+                INSERT INTO evaluations (id, run_id, dataset_id, name, task_type, predictions_path, metrics)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (evaluation_id, run_id, dataset_id, name, task_type, predictions_path, metrics_json),
+            )
+            if predictions:
+                self._predictions._insert_many(evaluation_id, predictions)
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
+        return self.get(evaluation_id)
 
     def get(self, evaluation_id: str) -> Optional[dict]:
         row = self._conn.execute("SELECT * FROM evaluations WHERE id = ?", (evaluation_id,)).fetchone()
@@ -252,6 +255,11 @@ class PredictionRepository:
         return dict(row)
 
     def _insert_many(self, evaluation_id: str, predictions: list[dict]) -> int:
+        required_keys = {"sample_id", "true_value", "pred_value", "is_correct"}
+        for i, p in enumerate(predictions):
+            missing = required_keys - p.keys()
+            if missing:
+                raise ValueError(f"Prediction at index {i} is missing required keys: {missing}")
         params = [
             (
                 evaluation_id,

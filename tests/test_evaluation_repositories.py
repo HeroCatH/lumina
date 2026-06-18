@@ -1,9 +1,10 @@
+import uuid
 from pathlib import Path
 
 import pytest
 
 from lumina.storage.db import get_db, init_schema
-from lumina.storage.repositories import EvaluationRepository, PredictionRepository, RunRepository
+from lumina.storage.repositories import DatasetRepository, EvaluationRepository, PredictionRepository, ProjectRepository, RunRepository
 
 
 def _db(tmp_path: Path) -> tuple:
@@ -257,3 +258,68 @@ def test_prediction_create_single(tmp_path):
     assert record["confidence"] == pytest.approx(0.75)
     assert record["is_correct"] == 0
     assert "id" in record
+
+
+def test_create_evaluation_rolls_back_on_bad_predictions(tmp_path):
+    _conn, run_repo, eval_repo, pred_repo = _db(tmp_path)
+    _create_run(run_repo)
+
+    evaluation_id = "eval-bad-preds"
+    bad_predictions = [
+        {"sample_id": "s1", "true_value": "0", "pred_value": "0", "is_correct": 1},
+        {"sample_id": "s2"},  # missing keys
+    ]
+
+    with pytest.raises(ValueError):
+        eval_repo.create(
+            evaluation_id=evaluation_id,
+            run_id="run-1",
+            dataset_id=None,
+            name="bad",
+            task_type="classification",
+            predictions_path="/tmp/bad.csv",
+            metrics_json='{"accuracy": 0.5}',
+            predictions=bad_predictions,
+        )
+
+    assert eval_repo.get(evaluation_id) is None
+    assert pred_repo.list_by_evaluation(evaluation_id) == []
+
+
+def test_list_by_dataset(tmp_path):
+    _conn, run_repo, eval_repo, _pred_repo = _db(tmp_path)
+    _create_run(run_repo)
+
+    projects = ProjectRepository(_conn)
+    project = projects.create(name="test-project", path="/tmp/proj")
+
+    datasets = DatasetRepository(_conn)
+    dataset = datasets.create(
+        project_id=project["id"],
+        name="ds",
+        path="/tmp/ds.csv",
+        adapter_type="csv",
+    )
+
+    e1 = eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id="run-1",
+        dataset_id=dataset["id"],
+        name="eval1",
+        task_type="classification",
+        predictions_path="/tmp/e1.csv",
+        metrics_json='{"accuracy": 0.8}',
+    )
+    eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id="run-1",
+        dataset_id=None,
+        name="eval2",
+        task_type="classification",
+        predictions_path="/tmp/e2.csv",
+        metrics_json='{"accuracy": 0.9}',
+    )
+
+    results = eval_repo.list_by_dataset(dataset["id"])
+    assert len(results) == 1
+    assert results[0]["id"] == e1["id"]
