@@ -14,26 +14,21 @@ def _is_numeric(values: list[str]) -> bool:
 
 
 def _infer_task_type(true_values: list[str], pred_values: list[str]) -> Literal["classification", "regression"]:
-    """Infer whether the predictions are for classification or regression.
+    """Infer task type from true/pred values.
 
-    Heuristic:
-      * If any value is not numeric, treat the task as classification.
-      * If numeric values contain decimals (non-integer), treat the task as regression.
-      * If all numeric values are integers with at most 20 unique values,
-        treat the task as classification.
-      * Otherwise (more than 20 unique integer values), treat the task as regression.
-
-    This heuristic is simple and may misclassify ambiguous cases. Callers should
-    pass ``task_type`` explicitly when the data type is known.
+    Rules:
+    - If any value contains a decimal point, treat as regression.
+    - If all numeric values are integers and have <= 20 unique values, treat as classification.
+    - Non-numeric values are treated as classification.
+    - Callers should use task_type override for ambiguous cases (e.g., >20 integer class labels).
     """
     combined = true_values + pred_values
+    if any("." in v for v in combined):
+        return "regression"
     if not _is_numeric(combined):
         return "classification"
     numeric = [float(v) for v in combined]
-    if any(v != int(v) for v in numeric):
-        return "regression"
-    unique_count = len(set(numeric))
-    if unique_count <= 20:
+    if all(v == int(v) for v in numeric) and len(set(numeric)) <= 20:
         return "classification"
     return "regression"
 
@@ -83,6 +78,8 @@ def _compute_regression_metrics(true_values: list[str], pred_values: list[str]) 
     Returns ``None`` for R² when the ground truth is constant (``ss_tot == 0``),
     since the score is undefined in that case.
     """
+    if not true_values:
+        raise ValueError("Cannot compute regression metrics on empty data")
     y_true = [float(v) for v in true_values]
     y_pred = [float(v) for v in pred_values]
     n = len(y_true)
@@ -125,6 +122,9 @@ class EvaluationLoader:
                 raise ValueError(f"Missing required columns: {sorted(missing)}")
             rows = list(reader)
 
+        if not rows:
+            raise ValueError("Predictions CSV is empty")
+
         ids = [r["id"] for r in rows]
         true_values = [r["true"] for r in rows]
         pred_values = [r["pred"] for r in rows]
@@ -140,6 +140,8 @@ class EvaluationLoader:
 
         predictions = []
         for i, row in enumerate(rows):
+            true_val = true_values[i]
+            pred_val = pred_values[i]
             confidence_value = confidences[i]
             parsed_confidence = None
             if confidence_value not in (None, ""):
@@ -148,12 +150,18 @@ class EvaluationLoader:
                 except ValueError:
                     parsed_confidence = None
 
+            # Numeric comparison for is_correct when both values are numbers
+            try:
+                is_correct = int(float(true_val) == float(pred_val))
+            except ValueError:
+                is_correct = int(true_val == pred_val)
+
             predictions.append({
                 "sample_id": ids[i],
-                "true_value": true_values[i],
-                "pred_value": pred_values[i],
+                "true_value": true_val,
+                "pred_value": pred_val,
                 "confidence": parsed_confidence,
-                "is_correct": int(true_values[i] == pred_values[i]),
+                "is_correct": is_correct,
             })
 
         return {

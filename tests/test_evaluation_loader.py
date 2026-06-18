@@ -67,3 +67,27 @@ def test_confidence_tolerates_invalid_value(tmp_path):
 
     result = EvaluationLoader.load(csv)
     assert result["predictions"][0]["confidence"] is None
+
+
+def test_regression_is_correct_uses_numeric_comparison(tmp_path):
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,true,pred\n0,1.0,1.00\n1,2.0,2.0\n")
+
+    result = EvaluationLoader.load(csv, task_type="regression")
+    assert result["predictions"][0]["is_correct"] == 1
+
+
+def test_decimal_values_infer_regression(tmp_path):
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,true,pred\n0,1.0,1.1\n1,2.0,1.9\n3,3.0,3.0\n")
+
+    result = EvaluationLoader.load(csv)
+    assert result["task_type"] == "regression"
+
+
+def test_empty_csv_raises(tmp_path):
+    csv = tmp_path / "pred.csv"
+    csv.write_text("id,true,pred\n")
+
+    with pytest.raises(ValueError):
+        EvaluationLoader.load(csv)
