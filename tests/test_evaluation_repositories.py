@@ -1,10 +1,17 @@
+import sqlite3
 import uuid
 from pathlib import Path
 
 import pytest
 
 from lumina.storage.db import get_db, init_schema
-from lumina.storage.repositories import DatasetRepository, EvaluationRepository, PredictionRepository, ProjectRepository, RunRepository
+from lumina.storage.repositories import (
+    DatasetRepository,
+    EvaluationRepository,
+    PredictionRepository,
+    ProjectRepository,
+    RunRepository,
+)
 
 
 def make_db(tmp_path: Path) -> tuple:
@@ -402,3 +409,90 @@ def test_list_by_project(tmp_path):
     results = eval_repo.list_by_project(project1["id"])
     assert len(results) == 1
     assert results[0]["id"] == e1["id"]
+
+
+def test_create_evaluation_rolls_back_after_partial_prediction_insert(tmp_path):
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
+    _create_run(run_repo)
+
+    evaluation_id = str(uuid.uuid4())
+    bad_predictions = [
+        {"sample_id": "s1", "true_value": "0", "pred_value": "0", "is_correct": 1},
+        {"sample_id": "s2", "true_value": "1", "pred_value": "1", "is_correct": 1},
+        {"sample_id": "s3"},  # missing keys; fails after two valid rows
+    ]
+
+    with pytest.raises(ValueError):
+        eval_repo.create(
+            evaluation_id=evaluation_id,
+            run_id="run-1",
+            dataset_id=None,
+            name="bad",
+            task_type="classification",
+            predictions_path="/tmp/bad.csv",
+            metrics_json='{"accuracy": 0.5}',
+            predictions=bad_predictions,
+        )
+
+    assert eval_repo.get(evaluation_id) is None
+    assert pred_repo.list_by_evaluation(evaluation_id) == []
+
+
+def test_prediction_create_with_none_confidence(tmp_path):
+    _conn, run_repo, eval_repo, _pred_repo = make_db(tmp_path)
+    _create_run(run_repo)
+
+    evaluation = eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id="run-1",
+        dataset_id=None,
+        name="eval",
+        task_type="classification",
+        predictions_path="/tmp/eval.csv",
+        metrics_json='{"accuracy": 1.0}',
+    )
+
+    preds = PredictionRepository(_conn)
+    pred = preds.create(
+        evaluation_id=evaluation["id"],
+        sample_id="s1",
+        true_value="0",
+        pred_value="0",
+        confidence=None,
+        is_correct=1,
+    )
+    assert pred["confidence"] is None
+
+
+def test_create_evaluation_fails_for_missing_run(tmp_path):
+    _conn, _run_repo, eval_repo, _pred_repo = make_db(tmp_path)
+
+    with pytest.raises(sqlite3.IntegrityError):
+        eval_repo.create(
+            evaluation_id=str(uuid.uuid4()),
+            run_id="nonexistent-run",
+            dataset_id=None,
+            name="orphan",
+            task_type="classification",
+            predictions_path="/tmp/eval.csv",
+            metrics_json='{"accuracy": 1.0}',
+        )
+
+
+def test_prediction_create_many_empty_list(tmp_path):
+    _conn, run_repo, eval_repo, pred_repo = make_db(tmp_path)
+    _create_run(run_repo)
+
+    evaluation = eval_repo.create(
+        evaluation_id=str(uuid.uuid4()),
+        run_id="run-1",
+        dataset_id=None,
+        name="eval",
+        task_type="classification",
+        predictions_path="/tmp/eval.csv",
+        metrics_json='{"accuracy": 1.0}',
+    )
+
+    count = pred_repo.create_many(evaluation_id=evaluation["id"], predictions=[])
+    assert count == 0
+    assert pred_repo.count_by_evaluation(evaluation["id"]) == 0

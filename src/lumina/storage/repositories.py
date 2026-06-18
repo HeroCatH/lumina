@@ -189,7 +189,8 @@ class EvaluationRepository:
         metrics_json: str,
         predictions: Optional[list[dict]] = None,
     ) -> dict:
-        self._conn.execute("SAVEPOINT eval_create")
+        savepoint = f"eval_create_{uuid.uuid4().hex[:12]}"
+        self._conn.execute(f"SAVEPOINT {savepoint}")
         try:
             self._conn.execute(
                 """
@@ -200,11 +201,11 @@ class EvaluationRepository:
             )
             if predictions:
                 self._predictions._insert_many(evaluation_id, predictions)
-            self._conn.execute("RELEASE SAVEPOINT eval_create")
+            self._conn.execute(f"RELEASE SAVEPOINT {savepoint}")
             self._conn.commit()
         except Exception:
-            self._conn.execute("ROLLBACK TO SAVEPOINT eval_create")
-            self._conn.execute("RELEASE SAVEPOINT eval_create")
+            self._conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+            self._conn.execute(f"RELEASE SAVEPOINT {savepoint}")
             raise
         return self.get(evaluation_id)
 
