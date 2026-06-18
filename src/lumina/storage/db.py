@@ -63,6 +63,29 @@ CREATE TABLE IF NOT EXISTS sync_state (
     synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (run_id, file_path)
 );
+
+CREATE TABLE IF NOT EXISTS evaluations (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    dataset_id TEXT REFERENCES datasets(id) ON DELETE SET NULL,
+    name TEXT,
+    task_type TEXT NOT NULL,
+    predictions_path TEXT NOT NULL,
+    metrics TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evaluation_id TEXT NOT NULL REFERENCES evaluations(id) ON DELETE CASCADE,
+    sample_id TEXT NOT NULL,
+    true_value TEXT NOT NULL,
+    pred_value TEXT NOT NULL,
+    confidence REAL,
+    is_correct INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_predictions_evaluation ON predictions(evaluation_id);
 """
 
 
