@@ -1,11 +1,77 @@
 import hashlib
+import shutil
 import sqlite3
 import uuid
 from pathlib import Path
 from typing import Optional
 
+from lumina.experiments.evaluation_loader import EvaluationLoader
 from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter, LogParseError, TensorBoardLogAdapter
-from lumina.storage.repositories import CheckpointRepository, MetricRepository, RunRepository
+from lumina.storage.repositories import CheckpointRepository, EvaluationRepository, MetricRepository, PredictionRepository, RunRepository
+
+
+class EvaluationService:
+    def __init__(self, conn: sqlite3.Connection, project_path: Path):
+        self._conn = conn
+        self._project_path = Path(project_path)
+        self._repo = EvaluationRepository(conn)
+        self._predictions = PredictionRepository(conn)
+
+    def create(
+        self,
+        run_id: str,
+        predictions_path: Path | str,
+        dataset_id: Optional[str] = None,
+        name: Optional[str] = None,
+        task_type: Optional[str] = None,
+    ) -> dict:
+        source_path = Path(predictions_path)
+        if not source_path.exists() or not source_path.is_file():
+            raise ValueError(f"Predictions file does not exist: {predictions_path}")
+
+        evaluation_id = str(uuid.uuid4())
+        eval_dir = self._project_path / "evaluations" / evaluation_id
+        eval_dir.mkdir(parents=True, exist_ok=True)
+
+        local_predictions_path = eval_dir / "predictions.csv"
+        shutil.copy2(source_path, local_predictions_path)
+
+        loaded = EvaluationLoader.load(local_predictions_path, task_type=task_type)
+
+        if name is None:
+            name = source_path.name
+
+        return self._repo.create(
+            evaluation_id=evaluation_id,
+            run_id=run_id,
+            dataset_id=dataset_id,
+            name=name,
+            task_type=loaded["task_type"],
+            predictions_path=str(local_predictions_path),
+            metrics_json=loaded["metrics"],
+            predictions=loaded["predictions"],
+        )
+
+    def get(self, evaluation_id: str, include_predictions: bool = False) -> Optional[dict]:
+        evaluation = self._repo.get(evaluation_id)
+        if evaluation is None:
+            return None
+        if include_predictions:
+            evaluation["predictions"] = self._predictions.list_by_evaluation(evaluation_id)
+        return evaluation
+
+    def list_by_project(self, project_id: str) -> list[dict]:
+        return self._repo.list_by_project(project_id)
+
+    def list_by_run(self, run_id: str) -> list[dict]:
+        return self._repo.list_by_run(run_id)
+
+    def delete(self, evaluation_id: str) -> bool:
+        deleted = self._repo.delete(evaluation_id)
+        eval_dir = self._project_path / "evaluations" / evaluation_id
+        if eval_dir.exists():
+            shutil.rmtree(eval_dir)
+        return deleted
 
 
 class ExperimentService:
@@ -16,6 +82,7 @@ class ExperimentService:
         self.runs = RunRepository(conn)
         self.metrics = MetricRepository(conn)
         self.checkpoints = CheckpointRepository(conn)
+        self.evaluations = EvaluationService(conn, project_path)
         self._adapters = [JsonlLogAdapter(), CsvLogAdapter(), TensorBoardLogAdapter()]
 
     def checkpoint_dir(self, run_id: str) -> Path:
