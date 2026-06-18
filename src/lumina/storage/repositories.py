@@ -172,3 +172,133 @@ class CheckpointRepository:
             (run_id,),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+class EvaluationRepository:
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+        self._predictions = PredictionRepository(conn)
+
+    def create(
+        self,
+        evaluation_id: str,
+        run_id: str,
+        dataset_id: Optional[str],
+        name: Optional[str],
+        task_type: str,
+        predictions_path: str,
+        metrics_json: str,
+        predictions: Optional[list[dict]] = None,
+    ) -> dict:
+        self._conn.execute(
+            """
+            INSERT INTO evaluations (id, run_id, dataset_id, name, task_type, predictions_path, metrics)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (evaluation_id, run_id, dataset_id, name, task_type, predictions_path, metrics_json),
+        )
+        if predictions:
+            self._predictions.create_many(evaluation_id, predictions)
+        self._conn.commit()
+        row = self._conn.execute("SELECT * FROM evaluations WHERE id = ?", (evaluation_id,)).fetchone()
+        return dict(row)
+
+    def get(self, evaluation_id: str) -> Optional[dict]:
+        row = self._conn.execute("SELECT * FROM evaluations WHERE id = ?", (evaluation_id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_by_run(self, run_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM evaluations WHERE run_id = ? ORDER BY created_at DESC",
+            (run_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_by_dataset(self, dataset_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM evaluations WHERE dataset_id = ? ORDER BY created_at DESC",
+            (dataset_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete(self, evaluation_id: str) -> bool:
+        cur = self._conn.execute("DELETE FROM evaluations WHERE id = ?", (evaluation_id,))
+        self._conn.commit()
+        return cur.rowcount > 0
+
+
+class PredictionRepository:
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+
+    def create(
+        self,
+        evaluation_id: str,
+        sample_id: str,
+        true_value: str,
+        pred_value: str,
+        confidence: Optional[float],
+        is_correct: int,
+    ) -> dict:
+        cur = self._conn.execute(
+            """
+            INSERT INTO predictions (evaluation_id, sample_id, true_value, pred_value, confidence, is_correct)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (evaluation_id, sample_id, true_value, pred_value, confidence, is_correct),
+        )
+        self._conn.commit()
+        row = self._conn.execute("SELECT * FROM predictions WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return dict(row)
+
+    def create_many(self, evaluation_id: str, predictions: list[dict]) -> int:
+        params = [
+            (
+                evaluation_id,
+                p["sample_id"],
+                p["true_value"],
+                p["pred_value"],
+                p["confidence"],
+                p["is_correct"],
+            )
+            for p in predictions
+        ]
+        self._conn.executemany(
+            """
+            INSERT INTO predictions (evaluation_id, sample_id, true_value, pred_value, confidence, is_correct)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            params,
+        )
+        self._conn.commit()
+        return len(params)
+
+    def list_by_evaluation(self, evaluation_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM predictions WHERE evaluation_id = ? ORDER BY id ASC",
+            (evaluation_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def count_by_evaluation(self, evaluation_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS cnt FROM predictions WHERE evaluation_id = ?",
+            (evaluation_id,),
+        ).fetchone()
+        return row["cnt"]
+
+    def accuracy_for_evaluation(self, evaluation_id: str) -> Optional[float]:
+        row = self._conn.execute(
+            """
+            SELECT
+                SUM(is_correct) AS correct,
+                COUNT(*) AS total
+            FROM predictions
+            WHERE evaluation_id = ?
+            """,
+            (evaluation_id,),
+        ).fetchone()
+        total = row["total"]
+        if total == 0:
+            return None
+        return row["correct"] / total
