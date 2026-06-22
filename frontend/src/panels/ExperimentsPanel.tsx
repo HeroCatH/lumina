@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchCheckpoints, fetchMetrics, fetchRuns, syncLogs } from '../api'
+import { cardStyle, CYBER, sectionTitle, tdStyle, thStyle } from '../theme'
 import { Checkpoint, Metric, Run } from '../types'
 
 export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => void }) {
@@ -88,9 +89,25 @@ export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => vo
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
-      <div style={{ width: 240, borderRight: '1px solid #e0e0e0', padding: 12, overflow: 'auto' }}>
-        <h3>Runs</h3>
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        background: CYBER.bg,
+        color: CYBER.text,
+        fontFamily: CYBER.font,
+      }}
+    >
+      <div
+        style={{
+          width: 240,
+          borderRight: `1px solid ${CYBER.border}`,
+          padding: 12,
+          overflow: 'auto',
+          background: CYBER.panel,
+        }}
+      >
+        <div style={sectionTitle(CYBER.green)}>Runs</div>
         {runs.map((run) => (
           <div
             key={run.id}
@@ -100,21 +117,72 @@ export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => vo
               marginBottom: 6,
               borderRadius: 4,
               cursor: 'pointer',
-              background: run.id === selectedRunId ? '#dbeafe' : '#f3f4f6',
+              background: run.id === selectedRunId ? `${CYBER.green}22` : CYBER.panel2,
+              border: `1px solid ${run.id === selectedRunId ? CYBER.green : CYBER.border}`,
+              boxShadow: run.id === selectedRunId ? `0 0 10px ${CYBER.green}33` : 'none',
             }}
           >
-            <div style={{ fontWeight: 'bold', fontSize: 13 }}>{run.name}</div>
-            <div style={{ fontSize: 11, color: '#6b7280' }}>
+            <div
+              style={{
+                fontWeight: 'bold',
+                fontSize: 13,
+                color: run.id === selectedRunId ? CYBER.green : CYBER.text,
+              }}
+            >
+              {run.name}
+            </div>
+            <div style={{ fontSize: 11, color: CYBER.muted }}>
               {run.status} • {run.source}
             </div>
           </div>
         ))}
       </div>
-      <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={handleSync}>Sync logs</button>
-          {onEvaluate && <button onClick={onEvaluate}>Evaluate</button>}
-          <select value={metricName} onChange={(e) => setMetricName(e.target.value)}>
+          <button
+            onClick={handleSync}
+            style={{
+              background: 'transparent',
+              color: CYBER.green,
+              border: `1px solid ${CYBER.green}`,
+              borderRadius: 4,
+              padding: '6px 12px',
+              fontFamily: CYBER.font,
+              cursor: 'pointer',
+              boxShadow: `0 0 8px ${CYBER.green}33`,
+            }}
+          >
+            SYNC LOGS
+          </button>
+          {onEvaluate && (
+            <button
+              onClick={onEvaluate}
+              style={{
+                background: 'transparent',
+                color: CYBER.pink,
+                border: `1px solid ${CYBER.pink}`,
+                borderRadius: 4,
+                padding: '6px 12px',
+                fontFamily: CYBER.font,
+                cursor: 'pointer',
+                boxShadow: `0 0 8px ${CYBER.pink}33`,
+              }}
+            >
+              EVALUATE
+            </button>
+          )}
+          <select
+            value={metricName}
+            onChange={(e) => setMetricName(e.target.value)}
+            style={{
+              background: CYBER.panel2,
+              color: CYBER.text,
+              border: `1px solid ${CYBER.border}`,
+              borderRadius: 4,
+              padding: '6px 8px',
+              fontFamily: CYBER.font,
+            }}
+          >
             <option value="">All metrics</option>
             {metricNames.map((n) => (
               <option key={n} value={n}>
@@ -122,10 +190,10 @@ export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => vo
               </option>
             ))}
           </select>
-          {selectedRun && <span style={{ fontSize: 12, color: '#6b7280' }}>{selectedRun.name}</span>}
+          {selectedRun && <span style={{ fontSize: 12, color: CYBER.muted }}>{selectedRun.name}</span>}
         </div>
-        {loading && <div style={{ fontSize: 12, color: '#6b7280' }}>Loading...</div>}
-        {error && <div style={{ fontSize: 12, color: '#ef4444' }}>{error}</div>}
+        {loading && <div style={{ fontSize: 12, color: CYBER.blue }}>&gt; LOADING telemetry...</div>}
+        {error && <div style={{ fontSize: 12, color: CYBER.red }}>[ERR] {error}</div>}
         <MetricCurve metrics={metrics} />
         <CheckpointList checkpoints={checkpoints} />
       </div>
@@ -144,11 +212,11 @@ function MetricCurve({ metrics }: { metrics: Metric[] }) {
   }, [metrics])
 
   return (
-    <div style={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: 6, padding: 12 }}>
-      <h4 style={{ margin: '0 0 12px' }}>Metrics</h4>
+    <div style={{ flex: 1, ...cardStyle, padding: 12 }}>
+      <div style={sectionTitle(CYBER.blue)}>Metrics</div>
       {Object.entries(byName).map(([name, values]) => (
         <div key={name} style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>{name}</div>
+          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4, color: CYBER.blue }}>{name}</div>
           <SimpleLine data={values} />
         </div>
       ))}
@@ -172,31 +240,31 @@ function SimpleLine({ data }: { data: Metric[] }) {
   })
 
   return (
-    <svg width={width} height={height} style={{ background: '#f9fafb' }}>
-      <polyline fill="none" stroke="#3b82f6" strokeWidth={2} points={points.join(' ')} />
+    <svg width={width} height={height} style={{ background: CYBER.panel2, border: `1px solid ${CYBER.border}` }}>
+      <polyline fill="none" stroke={CYBER.blue} strokeWidth={2} points={points.join(' ')} />
     </svg>
   )
 }
 
 function CheckpointList({ checkpoints }: { checkpoints: Checkpoint[] }) {
   return (
-    <div style={{ height: 160, border: '1px solid #e0e0e0', borderRadius: 6, padding: 12, overflow: 'auto' }}>
-      <h4 style={{ margin: '0 0 12px' }}>Checkpoints</h4>
+    <div style={{ height: 160, ...cardStyle, padding: 12, overflow: 'auto' }}>
+      <div style={sectionTitle(CYBER.pink)}>Checkpoints</div>
       <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
         <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>
-            <th>Step</th>
-            <th>Path</th>
+          <tr style={{ textAlign: 'left', borderBottom: `1px solid ${CYBER.border}` }}>
+            <th style={thStyle}>Step</th>
+            <th style={thStyle}>Path</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {checkpoints.map((ckpt) => (
-            <tr key={ckpt.id}>
-              <td>{ckpt.step}</td>
-              <td>{ckpt.path}</td>
-              <td>
-                <a href={`/api/checkpoints/${ckpt.id}/download`} download>
+            <tr key={ckpt.id} style={{ borderBottom: `1px solid ${CYBER.border}` }}>
+              <td style={tdStyle}>{ckpt.step}</td>
+              <td style={tdStyle}>{ckpt.path}</td>
+              <td style={tdStyle}>
+                <a href={`/api/checkpoints/${ckpt.id}/download`} download style={{ color: CYBER.blue }}>
                   Download
                 </a>
               </td>
