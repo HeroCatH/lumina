@@ -65,6 +65,28 @@ def main(argv: List[str] | None = None) -> int:
     eval_list_parser.add_argument("--project", required=True, help="Project name")
     eval_list_parser.add_argument("--run-id", help="Run ID")
 
+    train_parser = project_sub.add_parser("train", help="Training management")
+    train_sub = train_parser.add_subparsers(dest="train_command")
+
+    train_create_parser = train_sub.add_parser("create", help="Create a training task")
+    train_create_parser.add_argument("command", help="Shell command to run")
+    train_create_parser.add_argument("--project", required=True, help="Project name")
+    train_create_parser.add_argument("--run-id", required=True, help="Run ID")
+    train_create_parser.add_argument("--name", help="Training name")
+    train_create_parser.add_argument("--config", help="Config JSON string")
+
+    train_list_parser = train_sub.add_parser("list", help="List training tasks")
+    train_list_parser.add_argument("--project", required=True, help="Project name")
+    train_list_parser.add_argument("--run-id", help="Run ID")
+
+    train_start_parser = train_sub.add_parser("start", help="Start a training task")
+    train_start_parser.add_argument("--project", required=True, help="Project name")
+    train_start_parser.add_argument("--training-id", required=True, help="Training ID")
+
+    train_stop_parser = train_sub.add_parser("stop", help="Stop a training task")
+    train_stop_parser.add_argument("--project", required=True, help="Project name")
+    train_stop_parser.add_argument("--training-id", required=True, help="Training ID")
+
     # lumina data
     data_parser = subparsers.add_parser("data", help="Dataset management")
     data_sub = data_parser.add_subparsers(dest="data_command")
@@ -107,6 +129,15 @@ def main(argv: List[str] | None = None) -> int:
             return _handle_eval_create(args)
         elif args.eval_command == "list":
             return _handle_eval_list(args)
+    elif args.command == "project" and args.project_command == "train":
+        if args.train_command == "create":
+            return _handle_train_create(args)
+        elif args.train_command == "list":
+            return _handle_train_list(args)
+        elif args.train_command == "start":
+            return _handle_train_start(args)
+        elif args.train_command == "stop":
+            return _handle_train_stop(args)
     elif args.command == "data" and args.data_command == "add":
         return _handle_data_add(args)
     elif args.command == "model" and args.model_command == "analyze":
@@ -302,6 +333,76 @@ def _handle_eval_list(args: argparse.Namespace) -> int:
                 f"{evaluation['task_type']}\t{_metrics_summary(evaluation['metrics'])}\t"
                 f"{evaluation['created_at']}"
             )
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_train_create(args: argparse.Namespace) -> int:
+    import json
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        config = json.loads(args.config) if args.config else None
+        training = project.experiments.trainings.create(
+            run_id=args.run_id,
+            command=args.command,
+            name=args.name,
+            config=config,
+        )
+        print(f"Created training: {training['id']} ({training['name']}) [{training['status']}]")
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_train_list(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        if args.run_id:
+            trainings = project.experiments.trainings.list_by_run(args.run_id)
+        else:
+            trainings = project.experiments.trainings.list_by_project(project.id)
+        for training in trainings:
+            print(
+                f"{training['id']}\t{training.get('name', '')}\t"
+                f"{training['status']}\t{training['command']}\t{training['created_at']}"
+            )
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_train_start(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        training = project.experiments.trainings.start(args.training_id)
+        print(f"Started training: {training['id']} pid={training.get('pid')} [{training['status']}]")
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_train_stop(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        training = project.experiments.trainings.stop(args.training_id)
+        print(f"Stopped training: {training['id']} [{training['status']}]")
         return 0
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
