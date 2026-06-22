@@ -8,6 +8,7 @@ import {
   fetchRuns,
   parseMetrics,
 } from '../api'
+import { CYBER, inputStyle, tdStyle, thStyle } from '../theme'
 import {
   ClassificationMetrics,
   CreateEvaluationBody,
@@ -18,20 +19,6 @@ import {
   RegressionMetrics,
   Run,
 } from '../types'
-
-const C = {
-  bg: '#050505',
-  panel: '#0a0a0a',
-  panel2: '#111111',
-  border: '#222222',
-  green: '#00ff41',
-  pink: '#ff00ff',
-  blue: '#00ccff',
-  red: '#ff3333',
-  text: '#e0e0e0',
-  muted: '#888888',
-  font: "'JetBrains Mono', 'Fira Code', monospace",
-}
 
 function fmtDate(iso: string): string {
   try {
@@ -167,23 +154,23 @@ export default function EvaluatePanel() {
       style={{
         display: 'flex',
         height: '100%',
-        background: C.bg,
-        color: C.text,
-        fontFamily: C.font,
+        background: CYBER.bg,
+        color: CYBER.text,
+        fontFamily: CYBER.font,
       }}
     >
       <aside
         style={{
           width: 280,
-          borderRight: `1px solid ${C.border}`,
-          background: C.panel,
+          borderRight: `1px solid ${CYBER.border}`,
+          background: CYBER.panel,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'auto',
         }}
       >
-        <div style={{ padding: 16, borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ color: C.green, fontSize: 12, marginBottom: 6, textTransform: 'uppercase' }}>
+        <div style={{ padding: 16, borderBottom: `1px solid ${CYBER.border}` }}>
+          <div style={{ color: CYBER.green, fontSize: 12, marginBottom: 6, textTransform: 'uppercase' }}>
             Run Target
           </div>
           <select
@@ -191,12 +178,12 @@ export default function EvaluatePanel() {
             onChange={(e) => setSelectedRunId(e.target.value || null)}
             style={{
               width: '100%',
-              background: C.panel2,
-              color: C.text,
-              border: `1px solid ${C.border}`,
+              background: CYBER.panel2,
+              color: CYBER.text,
+              border: `1px solid ${CYBER.border}`,
               borderRadius: 4,
               padding: '8px 10px',
-              fontFamily: C.font,
+              fontFamily: CYBER.font,
               outline: 'none',
             }}
           >
@@ -208,15 +195,15 @@ export default function EvaluatePanel() {
             ))}
           </select>
           {selectedRun && (
-            <div style={{ marginTop: 8, fontSize: 11, color: C.muted }}>
+            <div style={{ marginTop: 8, fontSize: 11, color: CYBER.muted }}>
               {selectedRun.status} • {selectedRun.source}
             </div>
           )}
         </div>
 
-        <div style={{ padding: 16, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ padding: 16, borderBottom: `1px solid ${CYBER.border}` }}>
           <div
-            style={{ color: C.blue, fontSize: 12, marginBottom: 10, textTransform: 'uppercase' }}
+            style={{ color: CYBER.blue, fontSize: 12, marginBottom: 10, textTransform: 'uppercase' }}
           >
             New Evaluation
           </div>
@@ -260,13 +247,13 @@ export default function EvaluatePanel() {
               disabled={!selectedRunId || loading}
               style={{
                 background: 'transparent',
-                color: C.green,
-                border: `1px solid ${C.green}`,
+                color: CYBER.green,
+                border: `1px solid ${CYBER.green}`,
                 borderRadius: 4,
                 padding: '8px 12px',
-                fontFamily: C.font,
+                fontFamily: CYBER.font,
                 cursor: 'pointer',
-                boxShadow: `0 0 8px ${C.green}33`,
+                boxShadow: `0 0 8px ${CYBER.green}33`,
               }}
             >
               CREATE EVAL
@@ -275,11 +262,11 @@ export default function EvaluatePanel() {
         </div>
 
         <div style={{ flex: 1, padding: 16, overflow: 'auto' }}>
-          <div style={{ color: C.pink, fontSize: 12, marginBottom: 10, textTransform: 'uppercase' }}>
+          <div style={{ color: CYBER.pink, fontSize: 12, marginBottom: 10, textTransform: 'uppercase' }}>
             Evaluations
           </div>
           {evaluations.length === 0 && (
-            <div style={{ color: C.muted, fontSize: 12 }}>No evaluations found.</div>
+            <div style={{ color: CYBER.muted, fontSize: 12 }}>No evaluations found.</div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {evaluations.map((ev) => {
@@ -292,19 +279,19 @@ export default function EvaluatePanel() {
                   style={{
                     padding: 10,
                     borderRadius: 4,
-                    border: `1px solid ${active ? C.green : C.border}`,
-                    background: active ? `${C.green}11` : C.panel2,
+                    border: `1px solid ${active ? CYBER.green : CYBER.border}`,
+                    background: active ? `${CYBER.green}11` : CYBER.panel2,
                     cursor: 'pointer',
-                    boxShadow: active ? `0 0 12px ${C.green}33` : 'none',
+                    boxShadow: active ? `0 0 12px ${CYBER.green}33` : 'none',
                   }}
                 >
-                  <div style={{ fontWeight: 'bold', fontSize: 13, color: active ? C.green : C.text }}>
+                  <div style={{ fontWeight: 'bold', fontSize: 13, color: active ? CYBER.green : CYBER.text }}>
                     {ev.name || ev.id.slice(0, 8)}
                   </div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: CYBER.muted, marginTop: 4 }}>
                     {ev.task_type} • {primary}
                   </div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{fmtDate(ev.created_at)}</div>
+                  <div style={{ fontSize: 10, color: CYBER.muted, marginTop: 4 }}>{fmtDate(ev.created_at)}</div>
                 </div>
               )
             })}
@@ -316,9 +303,9 @@ export default function EvaluatePanel() {
         {loading && (
           <div
             style={{
-              color: C.blue,
+              color: CYBER.blue,
               fontSize: 14,
-              textShadow: `0 0 8px ${C.blue}`,
+              textShadow: `0 0 8px ${CYBER.blue}`,
               marginBottom: 12,
             }}
           >
@@ -328,12 +315,12 @@ export default function EvaluatePanel() {
         {error && (
           <div
             style={{
-              color: C.red,
-              border: `1px solid ${C.red}`,
+              color: CYBER.red,
+              border: `1px solid ${CYBER.red}`,
               padding: 10,
               borderRadius: 4,
               marginBottom: 12,
-              background: `${C.red}11`,
+              background: `${CYBER.red}11`,
             }}
           >
             [ERR] {error}
@@ -341,7 +328,7 @@ export default function EvaluatePanel() {
         )}
 
         {!detail && !loading && (
-          <div style={{ color: C.muted }}>
+          <div style={{ color: CYBER.muted }}>
             Select or create an evaluation to inspect predictions and metrics.
           </div>
         )}
@@ -350,8 +337,8 @@ export default function EvaluatePanel() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div
               style={{
-                background: C.panel,
-                border: `1px solid ${C.border}`,
+                background: CYBER.panel,
+                border: `1px solid ${CYBER.border}`,
                 borderRadius: 6,
                 padding: 16,
                 display: 'flex',
@@ -360,22 +347,22 @@ export default function EvaluatePanel() {
               }}
             >
               <div>
-                <div style={{ fontSize: 18, color: C.green, textShadow: `0 0 10px ${C.green}55` }}>
+                <div style={{ fontSize: 18, color: CYBER.green, textShadow: `0 0 10px ${CYBER.green}55` }}>
                   {detail.name || `Evaluation ${detail.id.slice(0, 8)}`}
                 </div>
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>
+                <div style={{ fontSize: 12, color: CYBER.muted, marginTop: 6 }}>
                   {detail.task_type} • {fmtDate(detail.created_at)} • {detail.predictions_path}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 10, color: C.muted }}>PRIMARY METRIC</div>
-                  <div style={{ fontSize: 20, color: C.blue, textShadow: `0 0 10px ${C.blue}55` }}>
+                  <div style={{ fontSize: 10, color: CYBER.muted }}>PRIMARY METRIC</div>
+                  <div style={{ fontSize: 20, color: CYBER.blue, textShadow: `0 0 10px ${CYBER.blue}55` }}>
                     {isClassification(metrics)
                       ? metrics.accuracy.toFixed(4)
                       : (metrics as RegressionMetrics).mae.toFixed(4)}
                   </div>
-                  <div style={{ fontSize: 10, color: C.muted }}>
+                  <div style={{ fontSize: 10, color: CYBER.muted }}>
                     {isClassification(metrics) ? 'accuracy' : 'mae'}
                   </div>
                 </div>
@@ -383,11 +370,11 @@ export default function EvaluatePanel() {
                   onClick={handleDelete}
                   style={{
                     background: 'transparent',
-                    color: C.red,
-                    border: `1px solid ${C.red}`,
+                    color: CYBER.red,
+                    border: `1px solid ${CYBER.red}`,
                     borderRadius: 4,
                     padding: '8px 14px',
-                    fontFamily: C.font,
+                    fontFamily: CYBER.font,
                     cursor: 'pointer',
                   }}
                 >
@@ -418,21 +405,21 @@ function ClassificationDetail({
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        <MetricCard label="ACCURACY" value={metrics.accuracy} color={C.green} />
-        <MetricCard label="PRECISION" value={metrics.precision} color={C.blue} />
-        <MetricCard label="RECALL" value={metrics.recall} color={C.pink} />
-        <MetricCard label="F1" value={metrics.f1} color={C.green} />
+        <MetricCard label="ACCURACY" value={metrics.accuracy} color={CYBER.green} />
+        <MetricCard label="PRECISION" value={metrics.precision} color={CYBER.blue} />
+        <MetricCard label="RECALL" value={metrics.recall} color={CYBER.pink} />
+        <MetricCard label="F1" value={metrics.f1} color={CYBER.green} />
       </div>
 
       <div
         style={{
-          background: C.panel,
-          border: `1px solid ${C.border}`,
+          background: CYBER.panel,
+          border: `1px solid ${CYBER.border}`,
           borderRadius: 6,
           padding: 16,
         }}
       >
-        <div style={{ color: C.pink, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
+        <div style={{ color: CYBER.pink, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
           Confusion Matrix
         </div>
         <ConfusionMatrix matrix={metrics.confusion_matrix} />
@@ -440,18 +427,18 @@ function ClassificationDetail({
 
       <div
         style={{
-          background: C.panel,
-          border: `1px solid ${C.border}`,
+          background: CYBER.panel,
+          border: `1px solid ${CYBER.border}`,
           borderRadius: 6,
           padding: 16,
         }}
       >
-        <div style={{ color: C.blue, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
+        <div style={{ color: CYBER.blue, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
           Per-Class Metrics
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+            <tr style={{ borderBottom: `1px solid ${CYBER.border}` }}>
               <th style={thStyle}>Class</th>
               <th style={thStyle}>Precision</th>
               <th style={thStyle}>Recall</th>
@@ -460,7 +447,7 @@ function ClassificationDetail({
           </thead>
           <tbody>
             {Object.entries(metrics.per_class).map(([cls, vals]) => (
-              <tr key={cls} style={{ borderBottom: `1px solid ${C.border}` }}>
+              <tr key={cls} style={{ borderBottom: `1px solid ${CYBER.border}` }}>
                 <td style={tdStyle}>{cls}</td>
                 <td style={tdStyle}>{vals.precision.toFixed(4)}</td>
                 <td style={tdStyle}>{vals.recall.toFixed(4)}</td>
@@ -494,21 +481,21 @@ function RegressionDetail({
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <MetricCard label="MAE" value={metrics.mae} color={C.green} />
-        <MetricCard label="RMSE" value={metrics.rmse} color={C.blue} />
-        <MetricCard label="R²" value={metrics.r2 === null ? 'N/A' : metrics.r2} color={C.pink} />
+        <MetricCard label="MAE" value={metrics.mae} color={CYBER.green} />
+        <MetricCard label="RMSE" value={metrics.rmse} color={CYBER.blue} />
+        <MetricCard label="R²" value={metrics.r2 === null ? 'N/A' : metrics.r2} color={CYBER.pink} />
       </div>
 
       {numeric.length > 0 && (
         <div
           style={{
-            background: C.panel,
-            border: `1px solid ${C.border}`,
+            background: CYBER.panel,
+            border: `1px solid ${CYBER.border}`,
             borderRadius: 6,
             padding: 16,
           }}
         >
-          <div style={{ color: C.blue, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
+          <div style={{ color: CYBER.blue, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
             Predictions vs Truth
           </div>
           <RegressionScatter data={numeric} />
@@ -525,14 +512,14 @@ function MetricCard({ label, value, color }: { label: string; value: number | st
   return (
     <div
       style={{
-        background: C.panel,
+        background: CYBER.panel,
         border: `1px solid ${color}55`,
         borderRadius: 6,
         padding: 14,
         boxShadow: `0 0 12px ${color}22`,
       }}
     >
-      <div style={{ fontSize: 10, color: C.muted }}>{label}</div>
+      <div style={{ fontSize: 10, color: CYBER.muted }}>{label}</div>
       <div style={{ fontSize: 22, color, textShadow: `0 0 10px ${color}55`, marginTop: 4 }}>{display}</div>
     </div>
   )
@@ -570,7 +557,7 @@ function ConfusionMatrix({ matrix }: { matrix: ClassificationMetrics['confusion_
               width: cellSize,
               textAlign: 'center',
               fontSize: 10,
-              color: C.blue,
+              color: CYBER.blue,
               paddingBottom: 6,
             }}
           >
@@ -588,7 +575,7 @@ function ConfusionMatrix({ matrix }: { matrix: ClassificationMetrics['confusion_
               justifyContent: 'flex-end',
               paddingRight: 8,
               fontSize: 10,
-              color: C.blue,
+              color: CYBER.blue,
             }}
           >
             {r}
@@ -597,7 +584,7 @@ function ConfusionMatrix({ matrix }: { matrix: ClassificationMetrics['confusion_
             const val = matrix[r]?.[c] || 0
             const isDiag = r === c
             const alpha = Math.min(1, (val / maxVal) * 0.85 + (val > 0 ? 0.15 : 0))
-            const glowColor = isDiag ? C.green : C.pink
+            const glowColor = isDiag ? CYBER.green : CYBER.pink
             return (
               <div
                 key={`${r}-${c}`}
@@ -607,12 +594,12 @@ function ConfusionMatrix({ matrix }: { matrix: ClassificationMetrics['confusion_
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: `1px solid ${C.border}`,
-                  backgroundColor: val > 0 ? `${glowColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}` : C.panel2,
+                  border: `1px solid ${CYBER.border}`,
+                  backgroundColor: val > 0 ? `${glowColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}` : CYBER.panel2,
                   color: '#fff',
                   fontSize: 12,
                   textShadow: val > 0 ? `0 0 6px ${glowColor}` : 'none',
-                  boxShadow: val > 0 && isDiag ? `inset 0 0 10px ${C.green}44` : 'none',
+                  boxShadow: val > 0 && isDiag ? `inset 0 0 10px ${CYBER.green}44` : 'none',
                 }}
               >
                 {val}
@@ -636,13 +623,13 @@ function RegressionScatter({ data }: { data: { trueV: number; predV: number }[] 
   const scale = (v: number) => pad + ((v - min) / range) * (Math.min(width, height) - pad * 2)
 
   return (
-    <svg width={width} height={height} style={{ background: C.panel2, border: `1px solid ${C.border}` }}>
+    <svg width={width} height={height} style={{ background: CYBER.panel2, border: `1px solid ${CYBER.border}` }}>
       <line
         x1={pad}
         y1={height - pad}
         x2={width - pad}
         y2={pad}
-        stroke={C.muted}
+        stroke={CYBER.muted}
         strokeDasharray="4 4"
       />
       {data.map((d, i) => (
@@ -651,14 +638,14 @@ function RegressionScatter({ data }: { data: { trueV: number; predV: number }[] 
           cx={scale(d.trueV)}
           cy={height - scale(d.predV)}
           r={3}
-          fill={C.blue}
+          fill={CYBER.blue}
           opacity={0.8}
         />
       ))}
-      <text x={pad} y={height - 6} fill={C.muted} fontSize={10}>
+      <text x={pad} y={height - 6} fill={CYBER.muted} fontSize={10}>
         {min.toFixed(2)}
       </text>
-      <text x={width - pad - 40} y={pad - 6} fill={C.muted} fontSize={10}>
+      <text x={width - pad - 40} y={pad - 6} fill={CYBER.muted} fontSize={10}>
         {max.toFixed(2)}
       </text>
     </svg>
@@ -669,19 +656,19 @@ function PredictionsTable({ predictions }: { predictions: Prediction[] }) {
   return (
     <div
       style={{
-        background: C.panel,
-        border: `1px solid ${C.border}`,
+        background: CYBER.panel,
+        border: `1px solid ${CYBER.border}`,
         borderRadius: 6,
         padding: 16,
       }}
     >
-      <div style={{ color: C.green, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
+      <div style={{ color: CYBER.green, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
         Predictions ({predictions.length})
       </div>
       <div style={{ maxHeight: 320, overflow: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: C.panel }}>
-            <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+          <thead style={{ position: 'sticky', top: 0, background: CYBER.panel }}>
+            <tr style={{ borderBottom: `1px solid ${CYBER.border}` }}>
               <th style={thStyle}>Sample</th>
               <th style={thStyle}>True</th>
               <th style={thStyle}>Predicted</th>
@@ -696,8 +683,8 @@ function PredictionsTable({ predictions }: { predictions: Prediction[] }) {
                 <tr
                   key={p.id}
                   style={{
-                    borderBottom: `1px solid ${C.border}`,
-                    background: correct ? `${C.green}0d` : `${C.pink}0d`,
+                    borderBottom: `1px solid ${CYBER.border}`,
+                    background: correct ? `${CYBER.green}0d` : `${CYBER.pink}0d`,
                   }}
                 >
                   <td style={tdStyle}>{p.sample_id}</td>
@@ -706,7 +693,7 @@ function PredictionsTable({ predictions }: { predictions: Prediction[] }) {
                   <td style={tdStyle}>
                     {p.confidence === null ? '—' : p.confidence.toFixed(4)}
                   </td>
-                  <td style={{ ...tdStyle, color: correct ? C.green : C.pink }}>
+                  <td style={{ ...tdStyle, color: correct ? CYBER.green : CYBER.pink }}>
                     {correct ? 'YES' : 'NO'}
                   </td>
                 </tr>
@@ -726,27 +713,4 @@ function primaryMetric(ev: Evaluation): string {
   return `mae ${m.mae.toFixed(4)}`
 }
 
-const inputStyle: React.CSSProperties = {
-  background: C.panel2,
-  color: C.text,
-  border: `1px solid ${C.border}`,
-  borderRadius: 4,
-  padding: '8px 10px',
-  fontFamily: C.font,
-  outline: 'none',
-  width: '100%',
-  boxSizing: 'border-box',
-}
 
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '8px 10px',
-  color: C.muted,
-  fontWeight: 'normal',
-  textTransform: 'uppercase',
-  fontSize: 10,
-}
-
-const tdStyle: React.CSSProperties = {
-  padding: '8px 10px',
-}
