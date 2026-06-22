@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { fetchCurrentProject } from './hooks/useApi'
+import { CYBER, neonShadow } from './theme'
 import DataPanel from './panels/DataPanel'
 import EvaluatePanel from './panels/EvaluatePanel'
 import ExperimentsPanel from './panels/ExperimentsPanel'
 import ModelPanel from './panels/ModelPanel'
 
+type Mode = 'project' | 'model' | 'experiments' | 'evaluations'
+
 export default function App() {
-  const [mode, setMode] = useState<'project' | 'model' | 'experiments' | 'evaluations' | null>(null)
+  const [mode, setMode] = useState<Mode | null>(null)
   const [project, setProject] = useState<{ name: string; path: string } | null>(null)
 
   useEffect(() => {
@@ -23,43 +26,60 @@ export default function App() {
       })
   }, [])
 
-  if (mode === null) return <div style={{ padding: 20 }}>Loading...</div>
+  if (mode === null) return <div style={{ padding: 20, background: CYBER.bg, color: CYBER.text }}>Loading...</div>
+
+  const buttons: { label: string; target: Mode }[] =
+    mode === 'project'
+      ? [
+          { label: 'Model View', target: 'model' },
+          { label: 'Experiments', target: 'experiments' },
+          { label: 'Evaluations', target: 'evaluations' },
+        ]
+      : mode === 'model'
+      ? [
+          { label: 'Data View', target: 'project' },
+          { label: 'Experiments', target: 'experiments' },
+          { label: 'Evaluations', target: 'evaluations' },
+        ]
+      : mode === 'experiments'
+      ? [
+          { label: 'Data View', target: 'project' },
+          { label: 'Model View', target: 'model' },
+          { label: 'Evaluations', target: 'evaluations' },
+        ]
+      : [
+          { label: 'Data View', target: 'project' },
+          { label: 'Model View', target: 'model' },
+          { label: 'Experiments', target: 'experiments' },
+        ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <header style={{ padding: '12px 20px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: CYBER.bg }}>
+      <header
+        style={{
+          padding: '12px 20px',
+          borderBottom: `1px solid ${CYBER.border}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: CYBER.panel,
+          color: CYBER.text,
+          fontFamily: CYBER.font,
+        }}
+      >
         <div>
-          <h1 style={{ margin: 0, fontSize: 20 }}>Lumina</h1>
-          {project && <div style={{ fontSize: 12, color: '#666' }}>{project.name}</div>}
+          <h1 style={{ margin: 0, fontSize: 20, color: CYBER.green, textShadow: neonShadow(CYBER.green) }}>
+            LUMINA
+          </h1>
+          {project && <div style={{ fontSize: 12, color: CYBER.muted }}>{project.name}</div>}
         </div>
-        {mode === 'project' && (
-          <>
-            <button onClick={() => setMode('model')}>Model View</button>
-            <button onClick={() => setMode('experiments')}>Experiments</button>
-            <button onClick={() => setMode('evaluations')}>Evaluations</button>
-          </>
-        )}
-        {mode === 'model' && (
-          <>
-            <button onClick={() => setMode('project')}>Data View</button>
-            <button onClick={() => setMode('experiments')}>Experiments</button>
-            <button onClick={() => setMode('evaluations')}>Evaluations</button>
-          </>
-        )}
-        {mode === 'experiments' && (
-          <>
-            <button onClick={() => setMode('project')}>Data View</button>
-            <button onClick={() => setMode('model')}>Model View</button>
-            <button onClick={() => setMode('evaluations')}>Evaluations</button>
-          </>
-        )}
-        {mode === 'evaluations' && (
-          <>
-            <button onClick={() => setMode('project')}>Data View</button>
-            <button onClick={() => setMode('model')}>Model View</button>
-            <button onClick={() => setMode('experiments')}>Experiments</button>
-          </>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {buttons.map((b) => (
+            <NavButton key={b.target} onClick={() => setMode(b.target)}>
+              {b.label}
+            </NavButton>
+          ))}
+        </div>
       </header>
       <div style={{ flex: 1, overflow: 'hidden' }}>
         {mode === 'project' ? (
@@ -73,5 +93,25 @@ export default function App() {
         )}
       </div>
     </div>
+  )
+}
+
+function NavButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: 'transparent',
+        color: CYBER.blue,
+        border: `1px solid ${CYBER.blue}`,
+        borderRadius: 4,
+        padding: '6px 12px',
+        fontFamily: CYBER.font,
+        cursor: 'pointer',
+        boxShadow: `0 0 8px ${CYBER.blue}33`,
+      }}
+    >
+      {children}
+    </button>
   )
 }
