@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchGraph, fetchStats } from '../api'
+import { CYBER, inputStyle, tdStyle, thStyle } from '../theme'
 import { ModelGraph, ModelStats } from '../types'
 import LayerTree from '../components/LayerTree'
 import NodeGraph from '../components/NodeGraph'
@@ -37,8 +38,8 @@ export default function ModelPanel() {
       .catch((e) => setError(e.message))
   }
 
-  if (error) return <div style={{ padding: 20 }}>Error: {error}</div>
-  if (!graph) return <div style={{ padding: 20 }}>Loading...</div>
+  if (error) return <div style={{ padding: 20, background: CYBER.bg, color: CYBER.red }}>[ERR] {error}</div>
+  if (!graph) return <div style={{ padding: 20, background: CYBER.bg, color: CYBER.text }}>Loading...</div>
 
   const selectedNode = graph.nodes.find((n) => n.id === selectedId) || null
 
@@ -53,20 +54,34 @@ export default function ModelPanel() {
   }))
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <div style={{ width: 280, borderRight: '1px solid #e0e0e0' }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        background: CYBER.bg,
+        color: CYBER.text,
+        fontFamily: CYBER.font,
+      }}
+    >
+      <div style={{ width: 280, borderRight: `1px solid ${CYBER.border}`, background: CYBER.panel }}>
         <LayerTree nodes={graph.nodes} selectedId={selectedId} onSelect={setSelectedId} />
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {stats && (
-          <div style={{ padding: 12, borderBottom: '1px solid #e0e0e0' }}>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <span><strong>Params:</strong> {stats.params.total_params.toLocaleString()}</span>
-              <span><strong>FLOPs:</strong> {stats.flops.total_flops.toLocaleString()}</span>
-              <span><strong>MACs:</strong> {stats.flops.total_macs.toLocaleString()}</span>
-              <span><strong>Memory:</strong> {stats.memory.param_megabytes.toFixed(2)} MB</span>
+          <div style={{ padding: 12, borderBottom: `1px solid ${CYBER.border}`, background: CYBER.panel }}>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
+              {[
+                { label: 'PARAMS', value: stats.params.total_params.toLocaleString(), color: CYBER.green },
+                { label: 'FLOPs', value: stats.flops.total_flops.toLocaleString(), color: CYBER.blue },
+                { label: 'MACs', value: stats.flops.total_macs.toLocaleString(), color: CYBER.pink },
+                { label: 'MEMORY', value: `${stats.memory.param_megabytes.toFixed(2)} MB`, color: CYBER.yellow },
+              ].map((item) => (
+                <span key={item.label} style={{ color: item.color }}>
+                  {item.label}: {item.value}
+                </span>
+              ))}
               {stats.shapes && (
-                <span><strong>Output Shape:</strong> [{stats.shapes.output_shape.join(', ')}]</span>
+                <span style={{ color: CYBER.muted }}>OUT: [{stats.shapes.output_shape.join(', ')}]</span>
               )}
             </div>
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
@@ -75,10 +90,22 @@ export default function ModelPanel() {
                 value={shapeText}
                 onChange={(e) => setShapeText(e.target.value)}
                 placeholder="1,3,32,32"
-                style={{ padding: '4px 8px' }}
+                style={{ ...inputStyle, width: 'auto' }}
               />
-              <button onClick={handleAnalyzeShape} style={{ padding: '4px 12px' }}>
-                Analyze shape
+              <button
+                onClick={handleAnalyzeShape}
+                style={{
+                  background: 'transparent',
+                  color: CYBER.blue,
+                  border: `1px solid ${CYBER.blue}`,
+                  borderRadius: 4,
+                  padding: '6px 12px',
+                  fontFamily: CYBER.font,
+                  cursor: 'pointer',
+                  boxShadow: `0 0 8px ${CYBER.blue}33`,
+                }}
+              >
+                ANALYZE SHAPE
               </button>
             </div>
           </div>
@@ -92,17 +119,15 @@ export default function ModelPanel() {
             onSelect={setSelectedId}
           />
         </div>
-        <div style={{ maxHeight: '40%', borderTop: '1px solid #e0e0e0', overflow: 'auto' }}>
+        <div style={{ maxHeight: '40%', borderTop: `1px solid ${CYBER.border}`, overflow: 'auto', background: CYBER.panel }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead style={{ position: 'sticky', top: 0, background: '#fafafa' }}>
+            <thead style={{ position: 'sticky', top: 0, background: CYBER.panel2 }}>
               <tr>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #e0e0e0' }}>Node</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #e0e0e0' }}>Type</th>
-                <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #e0e0e0' }}>Params</th>
-                <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #e0e0e0' }}>FLOPs</th>
-                <th style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #e0e0e0' }}>Memory</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #e0e0e0' }}>Input Shape</th>
-                <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #e0e0e0' }}>Output Shape</th>
+                {['Node', 'Type', 'Params', 'FLOPs', 'Memory', 'Input Shape', 'Output Shape'].map((h) => (
+                  <th key={h} style={thStyle}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -111,34 +136,25 @@ export default function ModelPanel() {
                   key={row.id}
                   onClick={() => setSelectedId(row.id)}
                   style={{
-                    background: selectedId === row.id ? '#e3f2fd' : 'transparent',
+                    background: selectedId === row.id ? `${CYBER.blue}22` : 'transparent',
                     cursor: 'pointer',
+                    borderBottom: `1px solid ${CYBER.border}`,
                   }}
                 >
-                  <td style={{ padding: 8, borderBottom: '1px solid #f0f0f0' }}>{row.id}</td>
-                  <td style={{ padding: 8, borderBottom: '1px solid #f0f0f0' }}>{row.type}</td>
-                  <td style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #f0f0f0' }}>
-                    {String(row.params)}
-                  </td>
-                  <td style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #f0f0f0' }}>
-                    {String(row.flops)}
-                  </td>
-                  <td style={{ textAlign: 'right', padding: 8, borderBottom: '1px solid #f0f0f0' }}>
-                    {String(row.memory)}
-                  </td>
-                  <td style={{ padding: 8, borderBottom: '1px solid #f0f0f0' }}>
-                    {row.inputShape ? `[${row.inputShape.join(', ')}]` : '-'}
-                  </td>
-                  <td style={{ padding: 8, borderBottom: '1px solid #f0f0f0' }}>
-                    {row.outputShape ? `[${row.outputShape.join(', ')}]` : '-'}
-                  </td>
+                  <td style={{ ...tdStyle, color: selectedId === row.id ? CYBER.blue : CYBER.text }}>{row.id}</td>
+                  <td style={tdStyle}>{row.type}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{String(row.params)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{String(row.flops)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{String(row.memory)}</td>
+                  <td style={tdStyle}>{row.inputShape ? `[${row.inputShape.join(', ')}]` : '-'}</td>
+                  <td style={tdStyle}>{row.outputShape ? `[${row.outputShape.join(', ')}]` : '-'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-      <div style={{ width: 320, borderLeft: '1px solid #e0e0e0' }}>
+      <div style={{ width: 320, borderLeft: `1px solid ${CYBER.border}`, background: CYBER.panel }}>
         <DetailPanel node={selectedNode} stats={stats} />
       </div>
     </div>
