@@ -30,6 +30,13 @@ class CreateProjectRequest(BaseModel):
     path: Optional[str] = Field(None)
 
 
+class CreateTrainingRequest(BaseModel):
+    run_id: str
+    command: str
+    name: Optional[str] = Field(None)
+    config: Optional[dict] = Field(None)
+
+
 def _current_project(request: Request) -> Project:
     project = request.app.state.project
     if project is None:
@@ -165,6 +172,60 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
         if proj.experiments.evaluations.get(evaluation_id) is None:
             raise HTTPException(status_code=404, detail="Evaluation not found")
         proj.experiments.evaluations.delete(evaluation_id)
+        return {"deleted": True}
+
+    @app.get("/api/trainings")
+    def list_trainings(request: Request, run_id: Optional[str] = Query(None)) -> list[dict]:
+        proj = _current_project(request)
+        if run_id is not None and proj.experiments.runs.get(run_id) is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run_id is not None:
+            return proj.experiments.trainings.list_by_run(run_id)
+        return proj.experiments.trainings.list_by_project(proj.id)
+
+    @app.post("/api/trainings", status_code=201)
+    def create_training(request: Request, payload: CreateTrainingRequest = Body(...)) -> dict:
+        proj = _current_project(request)
+        try:
+            return proj.experiments.trainings.create(
+                run_id=payload.run_id,
+                command=payload.command,
+                name=payload.name,
+                config=payload.config,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    @app.get("/api/trainings/{training_id}")
+    def get_training(training_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        training = proj.experiments.trainings.get(training_id)
+        if training is None:
+            raise HTTPException(status_code=404, detail="Training not found")
+        return training
+
+    @app.post("/api/trainings/{training_id}/start")
+    def start_training(training_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        try:
+            return proj.experiments.trainings.start(training_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    @app.post("/api/trainings/{training_id}/stop")
+    def stop_training(training_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        try:
+            return proj.experiments.trainings.stop(training_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    @app.delete("/api/trainings/{training_id}")
+    def delete_training(training_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        if proj.experiments.trainings.get(training_id) is None:
+            raise HTTPException(status_code=404, detail="Training not found")
+        proj.experiments.trainings.delete(training_id)
         return {"deleted": True}
 
     @app.post("/api/projects/{project_id}/logs")

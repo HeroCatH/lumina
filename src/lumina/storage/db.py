@@ -89,6 +89,21 @@ CREATE TABLE IF NOT EXISTS predictions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_predictions_evaluation ON predictions(evaluation_id);
+
+CREATE TABLE IF NOT EXISTS trainings (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    name TEXT,
+    command TEXT NOT NULL,
+    config TEXT,
+    status TEXT DEFAULT 'pending',
+    pid INTEGER,
+    log_path TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_trainings_run ON trainings(run_id);
 """
 
 

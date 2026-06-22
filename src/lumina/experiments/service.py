@@ -1,13 +1,23 @@
 import hashlib
+import os
 import shutil
+import signal
 import sqlite3
+import subprocess
 import uuid
 from pathlib import Path
 from typing import Optional
 
 from lumina.experiments.evaluation_loader import EvaluationLoader
 from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter, LogParseError, TensorBoardLogAdapter
-from lumina.storage.repositories import CheckpointRepository, EvaluationRepository, MetricRepository, PredictionRepository, RunRepository
+from lumina.storage.repositories import (
+    CheckpointRepository,
+    EvaluationRepository,
+    MetricRepository,
+    PredictionRepository,
+    RunRepository,
+    TrainingRepository,
+)
 
 
 class EvaluationService:
@@ -79,6 +89,104 @@ class EvaluationService:
                 shutil.rmtree(eval_dir, ignore_errors=True)
 
 
+class TrainingService:
+    def __init__(self, conn: sqlite3.Connection, project_path: Path):
+        self._conn = conn
+        self._project_path = Path(project_path)
+        self._repo = TrainingRepository(conn)
+
+    def _training_dir(self, training_id: str) -> Path:
+        return self._project_path / "trainings" / training_id
+
+    def create(
+        self,
+        run_id: str,
+        command: str,
+        name: Optional[str] = None,
+        config: Optional[dict] = None,
+    ) -> dict:
+        run = self._conn.execute("SELECT 1 FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if run is None:
+            raise ValueError(f"Run not found: {run_id}")
+
+        training_id = str(uuid.uuid4())
+        training_dir = self._training_dir(training_id)
+        training_dir.mkdir(parents=True, exist_ok=True)
+        log_path = training_dir / "train.log"
+
+        import json
+
+        config_json = json.dumps(config) if config else None
+        return self._repo.create(
+            training_id=training_id,
+            run_id=run_id,
+            command=command,
+            name=name or f"train-{training_id[:8]}",
+            config_json=config_json,
+            log_path=str(log_path),
+        )
+
+    def get(self, training_id: str) -> Optional[dict]:
+        return self._repo.get(training_id)
+
+    def list_by_run(self, run_id: str) -> list[dict]:
+        return self._repo.list_by_run(run_id)
+
+    def list_by_project(self, project_id: str) -> list[dict]:
+        return self._repo.list_by_project(project_id)
+
+    def start(self, training_id: str) -> dict:
+        training = self._repo.get(training_id)
+        if training is None:
+            raise ValueError(f"Training not found: {training_id}")
+        if training["status"] == "running":
+            raise ValueError("Training is already running")
+
+        log_path = Path(training["log_path"])
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file = open(log_path, "a")
+        try:
+            process = subprocess.Popen(
+                training["command"],
+                shell=True,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                cwd=str(self._project_path),
+                preexec_fn=os.setsid if hasattr(os, "setsid") else None,
+            )
+        except Exception as exc:
+            log_file.close()
+            raise ValueError(f"Failed to start training: {exc}")
+
+        self._repo.update_status(training_id, "running", pid=process.pid)
+        return self._repo.get(training_id)
+
+    def stop(self, training_id: str) -> dict:
+        training = self._repo.get(training_id)
+        if training is None:
+            raise ValueError(f"Training not found: {training_id}")
+        pid = training["pid"]
+        if pid and training["status"] == "running":
+            try:
+                if hasattr(os, "killpg"):
+                    os.killpg(os.getpgid(pid), signal.SIGTERM)
+                else:
+                    os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        self._repo.update_status(training_id, "stopped")
+        return self._repo.get(training_id)
+
+    def delete(self, training_id: str) -> bool:
+        training = self._repo.get(training_id)
+        if training and training["status"] == "running":
+            try:
+                self.stop(training_id)
+            except ValueError:
+                pass
+        return self._repo.delete(training_id)
+
+
 class ExperimentService:
     def __init__(self, conn: sqlite3.Connection, project_path: Path, project_id: Optional[str] = None):
         self._conn = conn
@@ -88,6 +196,7 @@ class ExperimentService:
         self.metrics = MetricRepository(conn)
         self.checkpoints = CheckpointRepository(conn)
         self.evaluations = EvaluationService(conn, project_path)
+        self.trainings = TrainingService(conn, project_path)
         self._adapters = [JsonlLogAdapter(), CsvLogAdapter(), TensorBoardLogAdapter()]
 
     def checkpoint_dir(self, run_id: str) -> Path:

@@ -329,3 +329,76 @@ class PredictionRepository:
         if total == 0:
             return None
         return row["correct"] / total
+
+
+class TrainingRepository:
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+
+    def create(
+        self,
+        training_id: str,
+        run_id: str,
+        command: str,
+        name: Optional[str] = None,
+        config_json: Optional[str] = None,
+        log_path: Optional[str] = None,
+    ) -> dict:
+        self._conn.execute(
+            """
+            INSERT INTO trainings (id, run_id, name, command, config, log_path)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (training_id, run_id, name, command, config_json, log_path),
+        )
+        self._conn.commit()
+        return self.get(training_id)
+
+    def get(self, training_id: str) -> Optional[dict]:
+        row = self._conn.execute("SELECT * FROM trainings WHERE id = ?", (training_id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_by_run(self, run_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM trainings WHERE run_id = ? ORDER BY created_at DESC",
+            (run_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_by_project(self, project_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            """
+            SELECT trainings.* FROM trainings
+            JOIN runs ON trainings.run_id = runs.id
+            WHERE runs.project_id = ?
+            ORDER BY trainings.created_at DESC
+            """,
+            (project_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_status(self, training_id: str, status: str, pid: Optional[int] = None) -> None:
+        if pid is not None:
+            self._conn.execute(
+                """
+                UPDATE trainings
+                SET status = ?, pid = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (status, pid, training_id),
+            )
+        else:
+            self._conn.execute(
+                """
+                UPDATE trainings
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (status, training_id),
+            )
+        self._conn.commit()
+
+    def delete(self, training_id: str) -> bool:
+        cur = self._conn.execute("DELETE FROM trainings WHERE id = ?", (training_id,))
+        self._conn.commit()
+        return cur.rowcount > 0
