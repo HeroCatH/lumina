@@ -402,3 +402,73 @@ class TrainingRepository:
         cur = self._conn.execute("DELETE FROM trainings WHERE id = ?", (training_id,))
         self._conn.commit()
         return cur.rowcount > 0
+
+
+class DeploymentRepository:
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+
+    def create(
+        self,
+        deployment_id: str,
+        run_id: Optional[str],
+        evaluation_id: Optional[str],
+        target: str,
+        config_json: Optional[str] = None,
+    ) -> dict:
+        self._conn.execute(
+            """
+            INSERT INTO deployments (id, run_id, evaluation_id, target, config)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (deployment_id, run_id, evaluation_id, target, config_json),
+        )
+        self._conn.commit()
+        return self.get(deployment_id)
+
+    def get(self, deployment_id: str) -> Optional[dict]:
+        row = self._conn.execute("SELECT * FROM deployments WHERE id = ?", (deployment_id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_by_run(self, run_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM deployments WHERE run_id = ? ORDER BY created_at DESC",
+            (run_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_by_evaluation(self, evaluation_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT * FROM deployments WHERE evaluation_id = ? ORDER BY created_at DESC",
+            (evaluation_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_by_project(self, project_id: str) -> list[dict]:
+        rows = self._conn.execute(
+            """
+            SELECT deployments.* FROM deployments
+            LEFT JOIN runs ON deployments.run_id = runs.id
+            LEFT JOIN evaluations ON deployments.evaluation_id = evaluations.id
+            WHERE runs.project_id = ? OR evaluations.run_id IN (SELECT id FROM runs WHERE project_id = ?)
+            ORDER BY deployments.created_at DESC
+            """,
+            (project_id, project_id),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_status(self, deployment_id: str, status: str) -> None:
+        self._conn.execute(
+            """
+            UPDATE deployments
+            SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (status, deployment_id),
+        )
+        self._conn.commit()
+
+    def delete(self, deployment_id: str) -> bool:
+        cur = self._conn.execute("DELETE FROM deployments WHERE id = ?", (deployment_id,))
+        self._conn.commit()
+        return cur.rowcount > 0

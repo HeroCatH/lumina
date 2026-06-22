@@ -10,6 +10,7 @@ import {
   MetricsJson,
   ProjectInfo,
   Training,
+  Deployment,
 } from './types'
 
 async function apiError(res: Response, fallback: string): Promise<Error> {
@@ -182,5 +183,37 @@ export async function stopTraining(id: string): Promise<Training> {
 export async function deleteTraining(id: string): Promise<{ deleted: boolean }> {
   const res = await fetch(`/api/trainings/${id}`, { method: 'DELETE' })
   if (!res.ok) throw await apiError(res, 'Failed to delete training')
+  return res.json()
+}
+
+export async function fetchDeployments(runId?: string, evaluationId?: string): Promise<Deployment[]> {
+  const params = new URLSearchParams()
+  if (runId) params.append('run_id', runId)
+  if (evaluationId) params.append('evaluation_id', evaluationId)
+  const res = await fetch(buildUrl('/api/deployments', params))
+  if (!res.ok) throw await apiError(res, 'Failed to fetch deployments')
+  return res.json()
+}
+
+export interface CreateDeploymentBody {
+  target: string
+  run_id?: string | null
+  evaluation_id?: string | null
+  config?: Record<string, any> | null
+}
+
+export async function createDeployment(body: CreateDeploymentBody): Promise<Deployment> {
+  const res = await fetch('/api/deployments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw await apiError(res, 'Failed to create deployment')
+  return res.json()
+}
+
+export async function deleteDeployment(id: string): Promise<{ deleted: boolean }> {
+  const res = await fetch(`/api/deployments/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw await apiError(res, 'Failed to delete deployment')
   return res.json()
 }

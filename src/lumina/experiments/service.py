@@ -12,6 +12,7 @@ from lumina.experiments.evaluation_loader import EvaluationLoader
 from lumina.experiments.log_adapters import CsvLogAdapter, JsonlLogAdapter, LogParseError, TensorBoardLogAdapter
 from lumina.storage.repositories import (
     CheckpointRepository,
+    DeploymentRepository,
     EvaluationRepository,
     MetricRepository,
     PredictionRepository,
@@ -187,6 +188,70 @@ class TrainingService:
         return self._repo.delete(training_id)
 
 
+class DeploymentService:
+    def __init__(self, conn: sqlite3.Connection, project_path: Path):
+        self._conn = conn
+        self._project_path = Path(project_path)
+        self._repo = DeploymentRepository(conn)
+
+    def create(
+        self,
+        target: str,
+        run_id: Optional[str] = None,
+        evaluation_id: Optional[str] = None,
+        config: Optional[dict] = None,
+    ) -> dict:
+        import json
+
+        if not target or not target.strip():
+            raise ValueError("Deployment target is required")
+
+        resolved_run_id = run_id
+        if evaluation_id:
+            row = self._conn.execute(
+                "SELECT run_id FROM evaluations WHERE id = ?", (evaluation_id,)
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Evaluation not found: {evaluation_id}")
+            if resolved_run_id and resolved_run_id != row["run_id"]:
+                raise ValueError("Evaluation does not belong to the specified run")
+            resolved_run_id = row["run_id"]
+
+        if resolved_run_id:
+            run = self._conn.execute("SELECT 1 FROM runs WHERE id = ?", (resolved_run_id,)).fetchone()
+            if run is None:
+                raise ValueError(f"Run not found: {resolved_run_id}")
+
+        deployment_id = str(uuid.uuid4())
+        config_json = json.dumps(config) if config else None
+        return self._repo.create(
+            deployment_id=deployment_id,
+            run_id=resolved_run_id,
+            evaluation_id=evaluation_id,
+            target=target.strip(),
+            config_json=config_json,
+        )
+
+    def get(self, deployment_id: str) -> Optional[dict]:
+        return self._repo.get(deployment_id)
+
+    def list_by_run(self, run_id: str) -> list[dict]:
+        return self._repo.list_by_run(run_id)
+
+    def list_by_evaluation(self, evaluation_id: str) -> list[dict]:
+        return self._repo.list_by_evaluation(evaluation_id)
+
+    def list_by_project(self, project_id: str) -> list[dict]:
+        return self._repo.list_by_project(project_id)
+
+    def update_status(self, deployment_id: str, status: str) -> dict:
+        self._repo.update_status(deployment_id, status)
+        return self._repo.get(deployment_id)
+
+    def delete(self, deployment_id: str) -> bool:
+        return self._repo.delete(deployment_id)
+
+
 class ExperimentService:
     def __init__(self, conn: sqlite3.Connection, project_path: Path, project_id: Optional[str] = None):
         self._conn = conn
@@ -197,6 +262,7 @@ class ExperimentService:
         self.checkpoints = CheckpointRepository(conn)
         self.evaluations = EvaluationService(conn, project_path)
         self.trainings = TrainingService(conn, project_path)
+        self.deployments = DeploymentService(conn, project_path)
         self._adapters = [JsonlLogAdapter(), CsvLogAdapter(), TensorBoardLogAdapter()]
 
     def checkpoint_dir(self, run_id: str) -> Path:

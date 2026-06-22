@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchDatasets } from '../hooks/useApi'
 import {
   createEvaluation,
+  createDeployment,
+  deleteDeployment,
   deleteEvaluation,
+  fetchDeployments,
   fetchEvaluations,
   fetchEvaluation,
   fetchRuns,
@@ -14,6 +17,7 @@ import {
   ClassificationMetrics,
   CreateEvaluationBody,
   DatasetInfo,
+  Deployment,
   Evaluation,
   MetricsJson,
   Prediction,
@@ -49,6 +53,10 @@ export default function EvaluatePanel() {
   const [taskType, setTaskType] = useState<'auto' | 'classification' | 'regression'>('auto')
   const [datasetId, setDatasetId] = useState('')
   const [filterDatasetId, setFilterDatasetId] = useState('')
+
+  const [deployments, setDeployments] = useState<Deployment[]>([])
+  const [deployTarget, setDeployTarget] = useState('')
+  const [deployConfig, setDeployConfig] = useState('')
 
   useEffect(() => {
     setLoading(true)
@@ -86,14 +94,16 @@ export default function EvaluatePanel() {
     if (!selectedEvalId) {
       setDetail(null)
       setMetrics(null)
+      setDeployments([])
       return
     }
     setError(null)
     setLoading(true)
-    fetchEvaluation(selectedEvalId, true)
-      .then((ev) => {
+    Promise.all([fetchEvaluation(selectedEvalId, true), fetchDeployments(undefined, selectedEvalId)])
+      .then(([ev, deps]) => {
         setDetail(ev)
         setMetrics(parseMetrics(ev.metrics))
+        setDeployments(deps)
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -143,6 +153,54 @@ export default function EvaluatePanel() {
       if (selectedRunId) {
         const updated = await fetchEvaluations(selectedRunId, filterDatasetId || undefined)
         setEvaluations(updated)
+      }
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateDeployment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEvalId || !deployTarget.trim()) return
+    let config: Record<string, any> | null = null
+    if (deployConfig.trim()) {
+      try {
+        config = JSON.parse(deployConfig.trim())
+      } catch {
+        setError('Deployment config must be valid JSON')
+        return
+      }
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      await createDeployment({
+        target: deployTarget.trim(),
+        evaluation_id: selectedEvalId,
+        config,
+      })
+      setDeployTarget('')
+      setDeployConfig('')
+      const updated = await fetchDeployments(undefined, selectedEvalId)
+      setDeployments(updated)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteDeployment = async (id: string) => {
+    if (!confirm('Delete this deployment?')) return
+    setLoading(true)
+    setError(null)
+    try {
+      await deleteDeployment(id)
+      if (selectedEvalId) {
+        const updated = await fetchDeployments(undefined, selectedEvalId)
+        setDeployments(updated)
       }
     } catch (err: any) {
       setError(err.message)
@@ -414,6 +472,16 @@ export default function EvaluatePanel() {
             ) : (
               <RegressionDetail metrics={metrics as RegressionMetrics} predictions={detail.predictions || []} />
             )}
+
+            <DeploymentSection
+              deployments={deployments}
+              target={deployTarget}
+              config={deployConfig}
+              onTargetChange={setDeployTarget}
+              onConfigChange={setDeployConfig}
+              onCreate={handleCreateDeployment}
+              onDelete={handleDeleteDeployment}
+            />
           </div>
         )}
       </main>
@@ -728,6 +796,110 @@ function PredictionsTable({ predictions }: { predictions: Prediction[] }) {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+function DeploymentSection({
+  deployments,
+  target,
+  config,
+  onTargetChange,
+  onConfigChange,
+  onCreate,
+  onDelete,
+}: {
+  deployments: Deployment[]
+  target: string
+  config: string
+  onTargetChange: (v: string) => void
+  onConfigChange: (v: string) => void
+  onCreate: (e: React.FormEvent) => void
+  onDelete: (id: string) => void
+}) {
+  return (
+    <div
+      style={{
+        background: CYBER.panel,
+        border: `1px solid ${CYBER.border}`,
+        borderRadius: 6,
+        padding: 16,
+      }}
+    >
+      <div style={{ color: CYBER.pink, fontSize: 12, marginBottom: 12, textTransform: 'uppercase' }}>
+        Deployments
+      </div>
+      <form onSubmit={onCreate} style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input
+          placeholder="target (e.g. local, cloud)"
+          value={target}
+          onChange={(e) => onTargetChange(e.target.value)}
+          required
+          style={{ ...inputStyle, flex: 1, minWidth: 180 }}
+        />
+        <input
+          placeholder='config JSON (optional)'
+          value={config}
+          onChange={(e) => onConfigChange(e.target.value)}
+          style={{ ...inputStyle, flex: 2, minWidth: 240 }}
+        />
+        <button
+          type="submit"
+          style={{
+            background: 'transparent',
+            color: CYBER.pink,
+            border: `1px solid ${CYBER.pink}`,
+            borderRadius: 4,
+            padding: '8px 14px',
+            fontFamily: CYBER.font,
+            cursor: 'pointer',
+            boxShadow: `0 0 8px ${CYBER.pink}33`,
+          }}
+        >
+          DEPLOY
+        </button>
+      </form>
+      {deployments.length === 0 ? (
+        <EmptyState style={{ padding: 12, fontSize: 12 }}>No deployments yet.</EmptyState>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${CYBER.border}` }}>
+              <th style={thStyle}>Target</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Config</th>
+              <th style={thStyle}>Created</th>
+              <th style={thStyle} />
+            </tr>
+          </thead>
+          <tbody>
+            {deployments.map((d) => (
+              <tr key={d.id} style={{ borderBottom: `1px solid ${CYBER.border}` }}>
+                <td style={tdStyle}>{d.target}</td>
+                <td style={tdStyle}>{d.status}</td>
+                <td style={tdStyle}>{d.config ? d.config : '—'}</td>
+                <td style={tdStyle}>{fmtDate(d.created_at)}</td>
+                <td style={tdStyle}>
+                  <button
+                    onClick={() => onDelete(d.id)}
+                    style={{
+                      background: 'transparent',
+                      color: CYBER.red,
+                      border: `1px solid ${CYBER.red}`,
+                      borderRadius: 4,
+                      padding: '4px 10px',
+                      fontFamily: CYBER.font,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    DELETE
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   )
 }

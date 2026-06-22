@@ -104,6 +104,20 @@ CREATE TABLE IF NOT EXISTS trainings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_trainings_run ON trainings(run_id);
+
+CREATE TABLE IF NOT EXISTS deployments (
+    id TEXT PRIMARY KEY,
+    run_id TEXT REFERENCES runs(id) ON DELETE CASCADE,
+    evaluation_id TEXT REFERENCES evaluations(id) ON DELETE SET NULL,
+    target TEXT NOT NULL,
+    config TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_deployments_run ON deployments(run_id);
+CREATE INDEX IF NOT EXISTS idx_deployments_evaluation ON deployments(evaluation_id);
 """
 
 

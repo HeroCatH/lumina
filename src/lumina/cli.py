@@ -87,6 +87,21 @@ def main(argv: List[str] | None = None) -> int:
     train_stop_parser.add_argument("--project", required=True, help="Project name")
     train_stop_parser.add_argument("--training-id", required=True, help="Training ID")
 
+    deploy_parser = project_sub.add_parser("deploy", help="Model deployment management")
+    deploy_sub = deploy_parser.add_subparsers(dest="deploy_command")
+
+    deploy_create_parser = deploy_sub.add_parser("create", help="Create a deployment record")
+    deploy_create_parser.add_argument("target", help="Deployment target name")
+    deploy_create_parser.add_argument("--project", required=True, help="Project name")
+    deploy_create_parser.add_argument("--run-id", help="Run ID")
+    deploy_create_parser.add_argument("--evaluation-id", help="Evaluation ID")
+    deploy_create_parser.add_argument("--config", help="Config JSON string")
+
+    deploy_list_parser = deploy_sub.add_parser("list", help="List deployments")
+    deploy_list_parser.add_argument("--project", required=True, help="Project name")
+    deploy_list_parser.add_argument("--run-id", help="Run ID")
+    deploy_list_parser.add_argument("--evaluation-id", help="Evaluation ID")
+
     # lumina data
     data_parser = subparsers.add_parser("data", help="Dataset management")
     data_sub = data_parser.add_subparsers(dest="data_command")
@@ -138,6 +153,11 @@ def main(argv: List[str] | None = None) -> int:
             return _handle_train_start(args)
         elif args.train_command == "stop":
             return _handle_train_stop(args)
+    elif args.command == "project" and args.project_command == "deploy":
+        if args.deploy_command == "create":
+            return _handle_deploy_create(args)
+        elif args.deploy_command == "list":
+            return _handle_deploy_list(args)
     elif args.command == "data" and args.data_command == "add":
         return _handle_data_add(args)
     elif args.command == "model" and args.model_command == "analyze":
@@ -403,6 +423,54 @@ def _handle_train_stop(args: argparse.Namespace) -> int:
         project = manager.open(args.project)
         training = project.experiments.trainings.stop(args.training_id)
         print(f"Stopped training: {training['id']} [{training['status']}]")
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_deploy_create(args: argparse.Namespace) -> int:
+    import json
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        config = json.loads(args.config) if args.config else None
+        deployment = project.experiments.deployments.create(
+            target=args.target,
+            run_id=args.run_id,
+            evaluation_id=args.evaluation_id,
+            config=config,
+        )
+        print(
+            f"Created deployment: {deployment['id']} target={deployment['target']} "
+            f"[{deployment['status']}]"
+        )
+        return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_deploy_list(args: argparse.Namespace) -> int:
+    from lumina.core.project_manager import ProjectManager
+
+    try:
+        manager = ProjectManager()
+        project = manager.open(args.project)
+        if args.evaluation_id:
+            deployments = project.experiments.deployments.list_by_evaluation(args.evaluation_id)
+        elif args.run_id:
+            deployments = project.experiments.deployments.list_by_run(args.run_id)
+        else:
+            deployments = project.experiments.deployments.list_by_project(project.id)
+        for deployment in deployments:
+            print(
+                f"{deployment['id']}\t{deployment['target']}\t"
+                f"{deployment['status']}\trun={deployment.get('run_id', '-')}\t"
+                f"eval={deployment.get('evaluation_id', '-')}\t{deployment['created_at']}"
+            )
         return 0
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)

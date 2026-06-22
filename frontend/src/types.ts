@@ -108,6 +108,17 @@ export interface Training {
   updated_at: string
 }
 
+export interface Deployment {
+  id: string
+  run_id?: string | null
+  evaluation_id?: string | null
+  target: string
+  config?: string | null
+  status: 'pending' | 'running' | 'success' | 'failed'
+  created_at: string
+  updated_at: string
+}
+
 export interface ClassificationMetrics {
   accuracy: number
   precision: number

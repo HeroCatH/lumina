@@ -37,6 +37,13 @@ class CreateTrainingRequest(BaseModel):
     config: Optional[dict] = Field(None)
 
 
+class CreateDeploymentRequest(BaseModel):
+    target: str
+    run_id: Optional[str] = Field(None)
+    evaluation_id: Optional[str] = Field(None)
+    config: Optional[dict] = Field(None)
+
+
 def _current_project(request: Request) -> Project:
     project = request.app.state.project
     if project is None:
@@ -226,6 +233,50 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
         if proj.experiments.trainings.get(training_id) is None:
             raise HTTPException(status_code=404, detail="Training not found")
         proj.experiments.trainings.delete(training_id)
+        return {"deleted": True}
+
+    @app.get("/api/deployments")
+    def list_deployments(
+        request: Request,
+        run_id: Optional[str] = Query(None),
+        evaluation_id: Optional[str] = Query(None),
+    ) -> list[dict]:
+        proj = _current_project(request)
+        if run_id is not None and proj.experiments.runs.get(run_id) is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if evaluation_id is not None:
+            return proj.experiments.deployments.list_by_evaluation(evaluation_id)
+        if run_id is not None:
+            return proj.experiments.deployments.list_by_run(run_id)
+        return proj.experiments.deployments.list_by_project(proj.id)
+
+    @app.post("/api/deployments", status_code=201)
+    def create_deployment(request: Request, payload: CreateDeploymentRequest = Body(...)) -> dict:
+        proj = _current_project(request)
+        try:
+            return proj.experiments.deployments.create(
+                target=payload.target,
+                run_id=payload.run_id,
+                evaluation_id=payload.evaluation_id,
+                config=payload.config,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    @app.get("/api/deployments/{deployment_id}")
+    def get_deployment(deployment_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        deployment = proj.experiments.deployments.get(deployment_id)
+        if deployment is None:
+            raise HTTPException(status_code=404, detail="Deployment not found")
+        return deployment
+
+    @app.delete("/api/deployments/{deployment_id}")
+    def delete_deployment(deployment_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        if proj.experiments.deployments.get(deployment_id) is None:
+            raise HTTPException(status_code=404, detail="Deployment not found")
+        proj.experiments.deployments.delete(deployment_id)
         return {"deleted": True}
 
     @app.post("/api/projects/{project_id}/logs")
