@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchDatasets, fetchDatasetPreview } from '../hooks/useApi'
+import EmptyState from '../components/EmptyState'
 import { cardStyle, CYBER, sectionTitle, tdStyle, thStyle } from '../theme'
 import { DatasetInfo, DatasetPreview } from '../types'
 
@@ -51,6 +52,9 @@ export default function DataPanel() {
         }}
       >
         <div style={sectionTitle(CYBER.blue)}>Datasets</div>
+        {datasets.length === 0 && (
+          <EmptyState>No datasets registered yet.</EmptyState>
+        )}
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {datasets.map((ds) => (
             <li
@@ -113,7 +117,7 @@ export default function DataPanel() {
             </table>
           </div>
         ) : (
-          <div style={{ color: CYBER.muted }}>Select a dataset to preview.</div>
+          <EmptyState>Select a dataset to preview.</EmptyState>
         )}
       </div>
     </div>

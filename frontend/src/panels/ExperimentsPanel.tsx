@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchCheckpoints, fetchMetrics, fetchRuns, syncLogs } from '../api'
+import EmptyState from '../components/EmptyState'
 import { cardStyle, CYBER, sectionTitle, tdStyle, thStyle } from '../theme'
 import { Checkpoint, Metric, Run } from '../types'
 
@@ -108,6 +109,7 @@ export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => vo
         }}
       >
         <div style={sectionTitle(CYBER.green)}>Runs</div>
+        {runs.length === 0 && <EmptyState>No runs found.</EmptyState>}
         {runs.map((run) => (
           <div
             key={run.id}

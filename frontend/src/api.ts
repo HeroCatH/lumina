@@ -8,6 +8,7 @@ import {
   Prediction,
   CreateEvaluationBody,
   MetricsJson,
+  ProjectInfo,
 } from './types'
 
 async function apiError(res: Response, fallback: string): Promise<Error> {
@@ -114,5 +115,27 @@ export async function createEvaluation(body: CreateEvaluationBody): Promise<Eval
 export async function deleteEvaluation(id: string): Promise<{ deleted: boolean }> {
   const res = await fetch(`/api/evaluations/${id}`, { method: 'DELETE' })
   if (!res.ok) throw await apiError(res, 'Failed to delete evaluation')
+  return res.json()
+}
+
+export async function fetchProjects(): Promise<ProjectInfo[]> {
+  const res = await fetch('/api/projects')
+  if (!res.ok) throw await apiError(res, 'Failed to fetch projects')
+  return res.json()
+}
+
+export async function createProject(name: string, path?: string): Promise<ProjectInfo> {
+  const res = await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, path }),
+  })
+  if (!res.ok) throw await apiError(res, 'Failed to create project')
+  return res.json()
+}
+
+export async function openProject(name: string): Promise<ProjectInfo> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(name)}/open`, { method: 'POST' })
+  if (!res.ok) throw await apiError(res, 'Failed to open project')
   return res.json()
 }

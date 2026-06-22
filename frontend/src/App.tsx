@@ -1,30 +1,50 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchCurrentProject } from './hooks/useApi'
 import { CYBER, neonShadow } from './theme'
 import DataPanel from './panels/DataPanel'
 import EvaluatePanel from './panels/EvaluatePanel'
 import ExperimentsPanel from './panels/ExperimentsPanel'
 import ModelPanel from './panels/ModelPanel'
+import OnboardingScreen from './panels/OnboardingScreen'
 
 type Mode = 'project' | 'model' | 'experiments' | 'evaluations'
 
 export default function App() {
   const [mode, setMode] = useState<Mode | null>(null)
   const [project, setProject] = useState<{ name: string; path: string } | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const loadProject = useCallback(() => {
+    setLoading(true)
     fetchCurrentProject()
       .then((p) => {
         setProject(p)
-        setMode('project')
+        setMode((current) => current ?? 'project')
       })
       .catch((err) => {
         if (err.message !== 'No project loaded') {
           console.error('Unexpected error fetching project:', err)
         }
-        setMode('model')
+        setProject(null)
       })
+      .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    loadProject()
+  }, [loadProject])
+
+  if (loading) {
+    return (
+      <div style={{ padding: 20, background: CYBER.bg, color: CYBER.text, fontFamily: CYBER.font }}>
+        &gt; INITIALIZING...
+      </div>
+    )
+  }
+
+  if (!project) {
+    return <OnboardingScreen onProjectLoaded={loadProject} />
+  }
 
   if (mode === null) return <div style={{ padding: 20, background: CYBER.bg, color: CYBER.text }}>Loading...</div>
 

@@ -8,6 +8,7 @@ import {
   fetchRuns,
   parseMetrics,
 } from '../api'
+import EmptyState from '../components/EmptyState'
 import { CYBER, inputStyle, tdStyle, thStyle } from '../theme'
 import {
   ClassificationMetrics,
@@ -199,6 +200,9 @@ export default function EvaluatePanel() {
               {selectedRun.status} • {selectedRun.source}
             </div>
           )}
+          {runs.length === 0 && (
+            <EmptyState style={{ marginTop: 12 }}>Create a run first.</EmptyState>
+          )}
         </div>
 
         <div style={{ padding: 16, borderBottom: `1px solid ${CYBER.border}` }}>
@@ -266,7 +270,7 @@ export default function EvaluatePanel() {
             Evaluations
           </div>
           {evaluations.length === 0 && (
-            <div style={{ color: CYBER.muted, fontSize: 12 }}>No evaluations found.</div>
+            <EmptyState style={{ padding: 12, fontSize: 12 }}>No evaluations found.</EmptyState>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {evaluations.map((ev) => {
@@ -328,9 +332,7 @@ export default function EvaluatePanel() {
         )}
 
         {!detail && !loading && (
-          <div style={{ color: CYBER.muted }}>
-            Select or create an evaluation to inspect predictions and metrics.
-          </div>
+          <EmptyState>Select or create an evaluation to inspect predictions and metrics.</EmptyState>
         )}
 
         {detail && metrics && (
