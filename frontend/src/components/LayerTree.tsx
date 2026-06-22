@@ -1,3 +1,4 @@
+import { CYBER, sectionTitle } from '../theme'
 import { GraphNode } from '../types'
 
 interface LayerTreeProps {
@@ -8,9 +9,18 @@ interface LayerTreeProps {
 
 export default function LayerTree({ nodes, selectedId, onSelect }: LayerTreeProps) {
   return (
-    <div style={{ padding: 12, overflow: 'auto', height: '100%' }}>
-      <h3>Layers</h3>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
+    <div
+      style={{
+        padding: 12,
+        overflow: 'auto',
+        height: '100%',
+        background: CYBER.panel,
+        color: CYBER.text,
+        fontFamily: CYBER.font,
+      }}
+    >
+      <div style={sectionTitle(CYBER.blue)}>Layers</div>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {nodes.map((node) => (
           <li
             key={node.id}
@@ -18,12 +28,13 @@ export default function LayerTree({ nodes, selectedId, onSelect }: LayerTreeProp
             style={{
               padding: '6px 8px',
               cursor: 'pointer',
-              background: node.id === selectedId ? '#e6f7ff' : 'transparent',
-              borderBottom: '1px solid #f0f0f0',
+              background: node.id === selectedId ? `${CYBER.blue}22` : 'transparent',
+              borderBottom: `1px solid ${CYBER.border}`,
+              color: node.id === selectedId ? CYBER.blue : CYBER.text,
             }}
           >
             <div style={{ fontWeight: 500 }}>{node.display_name}</div>
-            <div style={{ fontSize: 12, color: '#888' }}>{node.type}</div>
+            <div style={{ fontSize: 12, color: CYBER.muted }}>{node.type}</div>
           </li>
         ))}
       </ul>

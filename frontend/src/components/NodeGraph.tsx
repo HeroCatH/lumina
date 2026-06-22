@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import cytoscape from 'cytoscape'
+import { CYBER } from '../theme'
 import { GraphNode, GraphEdge } from '../types'
 
 interface NodeGraphProps {
@@ -36,17 +37,20 @@ export default function NodeGraph({ nodes, edges, metadata, selectedId, onSelect
             height: 40,
             'text-valign': 'center',
             'text-halign': 'center',
-            'background-color': '#4a90d9',
-            color: '#fff',
+            'background-color': CYBER.blue,
+            color: CYBER.bg,
             'font-size': 10,
+            'border-width': 1,
+            'border-color': CYBER.blue,
+            'border-opacity': 1,
           },
         },
         {
           selector: 'edge',
           style: {
             width: 2,
-            'line-color': '#ccc',
-            'target-arrow-color': '#ccc',
+            'line-color': CYBER.muted,
+            'target-arrow-color': CYBER.muted,
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
           },
@@ -54,9 +58,10 @@ export default function NodeGraph({ nodes, edges, metadata, selectedId, onSelect
         {
           selector: '.selected',
           style: {
-            'background-color': '#e6a23c',
-            'line-color': '#e6a23c',
-            'target-arrow-color': '#e6a23c',
+            'background-color': CYBER.pink,
+            'border-color': CYBER.pink,
+            'line-color': CYBER.pink,
+            'target-arrow-color': CYBER.pink,
           },
         },
       ],
@@ -71,7 +76,7 @@ export default function NodeGraph({ nodes, edges, metadata, selectedId, onSelect
 
     cyRef.current = cy
     return () => cy.destroy()
-  }, [nodes, edges, onSelect])
+  }, [nodes, edges, onSelect, metadata])
 
   useEffect(() => {
     const cy = cyRef.current
@@ -82,5 +87,5 @@ export default function NodeGraph({ nodes, edges, metadata, selectedId, onSelect
     }
   }, [selectedId])
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#fafafa' }} />
+  return <div ref={containerRef} style={{ width: '100%', height: '100%', background: CYBER.panel2 }} />
 }
