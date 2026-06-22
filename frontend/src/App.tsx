@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchCurrentProject } from './hooks/useApi'
 import { CYBER, neonShadow } from './theme'
+import ComparePanel from './panels/ComparePanel'
 import DataPanel from './panels/DataPanel'
 import EvaluatePanel from './panels/EvaluatePanel'
 import ExperimentsPanel from './panels/ExperimentsPanel'
 import ModelPanel from './panels/ModelPanel'
 import OnboardingScreen from './panels/OnboardingScreen'
 
-type Mode = 'project' | 'model' | 'experiments' | 'evaluations'
+type Mode = 'project' | 'model' | 'experiments' | 'evaluations' | 'compare'
 
 export default function App() {
   const [mode, setMode] = useState<Mode | null>(null)
@@ -54,23 +55,34 @@ export default function App() {
           { label: 'Model View', target: 'model' },
           { label: 'Experiments', target: 'experiments' },
           { label: 'Evaluations', target: 'evaluations' },
+          { label: 'Compare', target: 'compare' },
         ]
       : mode === 'model'
       ? [
           { label: 'Data View', target: 'project' },
           { label: 'Experiments', target: 'experiments' },
           { label: 'Evaluations', target: 'evaluations' },
+          { label: 'Compare', target: 'compare' },
         ]
       : mode === 'experiments'
       ? [
           { label: 'Data View', target: 'project' },
           { label: 'Model View', target: 'model' },
           { label: 'Evaluations', target: 'evaluations' },
+          { label: 'Compare', target: 'compare' },
+        ]
+      : mode === 'evaluations'
+      ? [
+          { label: 'Data View', target: 'project' },
+          { label: 'Model View', target: 'model' },
+          { label: 'Experiments', target: 'experiments' },
+          { label: 'Compare', target: 'compare' },
         ]
       : [
           { label: 'Data View', target: 'project' },
           { label: 'Model View', target: 'model' },
           { label: 'Experiments', target: 'experiments' },
+          { label: 'Evaluations', target: 'evaluations' },
         ]
 
   return (
@@ -108,6 +120,8 @@ export default function App() {
           <ExperimentsPanel onEvaluate={() => setMode('evaluations')} />
         ) : mode === 'evaluations' ? (
           <EvaluatePanel />
+        ) : mode === 'compare' ? (
+          <ComparePanel />
         ) : (
           <ModelPanel />
         )}
