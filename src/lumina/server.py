@@ -2,13 +2,14 @@ import mimetypes
 from pathlib import Path
 from typing import Any, Literal, Optional
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from lumina.analyzers.aggregate import aggregate_analysis
 from lumina.core.project import Project
+from lumina.core.project_manager import ProjectManager
 from lumina.datasets.dataset import Dataset
 from lumina.loaders import load_model
 
@@ -24,70 +25,94 @@ class CreateEvaluationRequest(BaseModel):
     task_type: Optional[Literal["classification", "regression"]] = Field(None)
 
 
+class CreateProjectRequest(BaseModel):
+    name: str
+    path: Optional[str] = Field(None)
+
+
+def _current_project(request: Request) -> Project:
+    project = request.app.state.project
+    if project is None:
+        raise HTTPException(status_code=404, detail="No project loaded")
+    return project
+
+
 def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -> FastAPI:
     app = FastAPI(title="Lumina")
+    app.state.project = project
+
+    @app.get("/api/projects")
+    def list_projects() -> list[dict]:
+        with ProjectManager() as manager:
+            return manager.list()
+
+    @app.post("/api/projects", status_code=201)
+    def create_project(payload: CreateProjectRequest) -> dict:
+        with ProjectManager() as manager:
+            new_project = manager.create(payload.name, Path(payload.path) if payload.path else None)
+            app.state.project = new_project
+            return {"id": new_project.id, "name": new_project.name, "path": str(new_project.path)}
+
+    @app.post("/api/projects/{name}/open")
+    def open_project(name: str) -> dict:
+        with ProjectManager() as manager:
+            opened = manager.open(name)
+            app.state.project = opened
+            return {"id": opened.id, "name": opened.name, "path": str(opened.path)}
 
     @app.get("/api/projects/current")
-    def get_current_project() -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        return {"name": project.name, "path": str(project.path)}
+    def get_current_project(request: Request) -> dict:
+        proj = _current_project(request)
+        return {"name": proj.name, "path": str(proj.path)}
 
     @app.get("/api/datasets")
-    def list_datasets() -> list[dict]:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        return project.datasets.list_by_project(project.id)
+    def list_datasets(request: Request) -> list[dict]:
+        proj = _current_project(request)
+        return proj.datasets.list_by_project(proj.id)
 
     @app.get("/api/datasets/{name}/preview")
-    def preview_dataset(name: str, n: int = Query(10, ge=1)) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        record = project.datasets.get_by_name(project.id, name)
+    def preview_dataset(name: str, request: Request, n: int = Query(10, ge=1)) -> dict:
+        proj = _current_project(request)
+        record = proj.datasets.get_by_name(proj.id, name)
         if record is None:
             raise HTTPException(status_code=404, detail=f"Dataset {name} not found")
         ds = Dataset(name=record["name"], path=Path(record["path"]), adapter_type=record["adapter_type"])
         return {"rows": ds.preview(n), "schema": ds.schema(), "statistics": ds.statistics()}
 
     @app.get("/api/runs")
-    def list_runs() -> list[dict]:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        return project.experiments.runs.list_by_project(project.id)
+    def list_runs(request: Request) -> list[dict]:
+        proj = _current_project(request)
+        return proj.experiments.runs.list_by_project(proj.id)
 
     @app.get("/api/runs/{run_id}")
-    def get_run(run_id: str) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        run = project.experiments.runs.get(run_id)
+    def get_run(run_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        run = proj.experiments.runs.get(run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         return run
 
     @app.get("/api/metrics")
-    def list_metrics(run_id: str, name: Optional[str] = None) -> list[dict]:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        if project.experiments.runs.get(run_id) is None:
+    def list_metrics(request: Request, run_id: str, name: Optional[str] = None) -> list[dict]:
+        proj = _current_project(request)
+        if proj.experiments.runs.get(run_id) is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        return project.experiments.metrics.list_by_run(run_id, name=name)
+        return proj.experiments.metrics.list_by_run(run_id, name=name)
 
     @app.get("/api/checkpoints")
-    def list_checkpoints(run_id: str) -> list[dict]:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        if project.experiments.runs.get(run_id) is None:
+    def list_checkpoints(request: Request, run_id: str) -> list[dict]:
+        proj = _current_project(request)
+        if proj.experiments.runs.get(run_id) is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        return project.experiments.checkpoints.list_by_run(run_id)
+        return proj.experiments.checkpoints.list_by_run(run_id)
 
     @app.get("/api/checkpoints/{checkpoint_id}/download")
-    def download_checkpoint(checkpoint_id: int):
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        row = project.experiments.get_checkpoint(checkpoint_id)
+    def download_checkpoint(checkpoint_id: int, request: Request):
+        proj = _current_project(request)
+        row = proj.experiments.get_checkpoint(checkpoint_id)
         if row is None:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
-        file_path = project.path / row["path"]
+        file_path = proj.path / row["path"]
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Checkpoint file missing")
         return FileResponse(
@@ -97,21 +122,19 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
         )
 
     @app.get("/api/evaluations")
-    def list_evaluations(run_id: Optional[str] = Query(None)) -> list[dict]:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        if run_id is not None and project.experiments.runs.get(run_id) is None:
+    def list_evaluations(request: Request, run_id: Optional[str] = Query(None)) -> list[dict]:
+        proj = _current_project(request)
+        if run_id is not None and proj.experiments.runs.get(run_id) is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run_id is not None:
-            return project.experiments.evaluations.list_by_run(run_id)
-        return project.experiments.evaluations.list_by_project(project.id)
+            return proj.experiments.evaluations.list_by_run(run_id)
+        return proj.experiments.evaluations.list_by_project(proj.id)
 
     @app.post("/api/evaluations", status_code=201)
-    def create_evaluation(payload: CreateEvaluationRequest = Body(...)) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
+    def create_evaluation(request: Request, payload: CreateEvaluationRequest = Body(...)) -> dict:
+        proj = _current_project(request)
         try:
-            evaluation = project.experiments.evaluations.create(
+            evaluation = proj.experiments.evaluations.create(
                 run_id=payload.run_id,
                 predictions_path=payload.predictions_path,
                 dataset_id=payload.dataset_id,
@@ -123,54 +146,49 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
         return evaluation
 
     @app.get("/api/evaluations/{evaluation_id}")
-    def get_evaluation(evaluation_id: str, include_predictions: bool = Query(False)) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        evaluation = project.experiments.evaluations.get(evaluation_id, include_predictions=include_predictions)
+    def get_evaluation(evaluation_id: str, request: Request, include_predictions: bool = Query(False)) -> dict:
+        proj = _current_project(request)
+        evaluation = proj.experiments.evaluations.get(evaluation_id, include_predictions=include_predictions)
         if evaluation is None:
             raise HTTPException(status_code=404, detail="Evaluation not found")
         return evaluation
 
     @app.delete("/api/evaluations/{evaluation_id}")
-    def delete_evaluation(evaluation_id: str) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        if project.experiments.evaluations.get(evaluation_id) is None:
+    def delete_evaluation(evaluation_id: str, request: Request) -> dict:
+        proj = _current_project(request)
+        if proj.experiments.evaluations.get(evaluation_id) is None:
             raise HTTPException(status_code=404, detail="Evaluation not found")
-        project.experiments.evaluations.delete(evaluation_id)
+        proj.experiments.evaluations.delete(evaluation_id)
         return {"deleted": True}
 
     @app.post("/api/projects/{project_id}/logs")
-    def register_log_dir(project_id: str, log_dir: str, name: Optional[str] = None) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        if project_id != project.id:
+    def register_log_dir(project_id: str, request: Request, log_dir: str, name: Optional[str] = None) -> dict:
+        proj = _current_project(request)
+        if project_id != proj.id:
             raise HTTPException(status_code=404, detail="Project not found")
         try:
-            return project.experiments.register_log_dir(Path(log_dir), name=name)
+            return proj.experiments.register_log_dir(Path(log_dir), name=name)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
     @app.post("/api/projects/current/logs/sync")
-    def sync_current_log_dir(run_id: str) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        run = project.experiments.runs.get(run_id)
+    def sync_current_log_dir(request: Request, run_id: str) -> dict:
+        proj = _current_project(request)
+        run = proj.experiments.runs.get(run_id)
         if run is None or run["log_dir"] is None:
             raise HTTPException(status_code=400, detail="Run has no log directory")
-        count = project.experiments.sync_log_dir(Path(run["log_dir"]), run_id)
+        count = proj.experiments.sync_log_dir(Path(run["log_dir"]), run_id)
         return {"synced": count}
 
     @app.post("/api/projects/{project_id}/logs/sync")
-    def sync_log_dir(project_id: str, run_id: str) -> dict:
-        if project is None:
-            raise HTTPException(status_code=404, detail="No project loaded")
-        if project_id != project.id:
+    def sync_log_dir(project_id: str, request: Request, run_id: str) -> dict:
+        proj = _current_project(request)
+        if project_id != proj.id:
             raise HTTPException(status_code=404, detail="Project not found")
-        run = project.experiments.runs.get(run_id)
+        run = proj.experiments.runs.get(run_id)
         if run is None or run["log_dir"] is None:
             raise HTTPException(status_code=400, detail="Run has no log directory")
-        count = project.experiments.sync_log_dir(Path(run["log_dir"]), run_id)
+        count = proj.experiments.sync_log_dir(Path(run["log_dir"]), run_id)
         return {"synced": count}
 
     # Existing model endpoints kept for backward compatibility
