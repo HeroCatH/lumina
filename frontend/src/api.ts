@@ -9,6 +9,7 @@ import {
   CreateEvaluationBody,
   MetricsJson,
   ProjectInfo,
+  Training,
 } from './types'
 
 async function apiError(res: Response, fallback: string): Promise<Error> {
@@ -138,5 +139,48 @@ export async function createProject(name: string, path?: string): Promise<Projec
 export async function openProject(name: string): Promise<ProjectInfo> {
   const res = await fetch(`/api/projects/${encodeURIComponent(name)}/open`, { method: 'POST' })
   if (!res.ok) throw await apiError(res, 'Failed to open project')
+  return res.json()
+}
+
+export async function fetchTrainings(runId?: string): Promise<Training[]> {
+  const params = new URLSearchParams()
+  if (runId) params.append('run_id', runId)
+  const res = await fetch(buildUrl('/api/trainings', params))
+  if (!res.ok) throw await apiError(res, 'Failed to fetch trainings')
+  return res.json()
+}
+
+export interface CreateTrainingBody {
+  run_id: string
+  command: string
+  name?: string | null
+  config?: Record<string, any> | null
+}
+
+export async function createTraining(body: CreateTrainingBody): Promise<Training> {
+  const res = await fetch('/api/trainings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw await apiError(res, 'Failed to create training')
+  return res.json()
+}
+
+export async function startTraining(id: string): Promise<Training> {
+  const res = await fetch(`/api/trainings/${id}/start`, { method: 'POST' })
+  if (!res.ok) throw await apiError(res, 'Failed to start training')
+  return res.json()
+}
+
+export async function stopTraining(id: string): Promise<Training> {
+  const res = await fetch(`/api/trainings/${id}/stop`, { method: 'POST' })
+  if (!res.ok) throw await apiError(res, 'Failed to stop training')
+  return res.json()
+}
+
+export async function deleteTraining(id: string): Promise<{ deleted: boolean }> {
+  const res = await fetch(`/api/trainings/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw await apiError(res, 'Failed to delete training')
   return res.json()
 }

@@ -95,6 +95,19 @@ export interface Checkpoint {
   created_at: string
 }
 
+export interface Training {
+  id: string
+  run_id: string
+  name?: string | null
+  command: string
+  config?: string | null
+  status: 'pending' | 'running' | 'stopped' | 'failed'
+  pid?: number | null
+  log_path?: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface ClassificationMetrics {
   accuracy: number
   precision: number

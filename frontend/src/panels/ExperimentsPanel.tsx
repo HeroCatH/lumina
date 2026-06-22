@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchCheckpoints, fetchMetrics, fetchRuns, syncLogs } from '../api'
 import EmptyState from '../components/EmptyState'
+import TrainingPanel from '../components/TrainingPanel'
 import { cardStyle, CYBER, sectionTitle, tdStyle, thStyle } from '../theme'
 import { Checkpoint, Metric, Run } from '../types'
 
@@ -10,6 +11,7 @@ export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => vo
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [metricName, setMetricName] = useState<string>('')
+  const [activeTab, setActiveTab] = useState<'metrics' | 'checkpoints' | 'trainings'>('metrics')
   const [inFlight, setInFlight] = useState(0)
   const loading = inFlight > 0
   const [error, setError] = useState<string | null>(null)
@@ -196,8 +198,34 @@ export default function ExperimentsPanel({ onEvaluate }: { onEvaluate?: () => vo
         </div>
         {loading && <div style={{ fontSize: 12, color: CYBER.blue }}>&gt; LOADING telemetry...</div>}
         {error && <div style={{ fontSize: 12, color: CYBER.red }}>[ERR] {error}</div>}
-        <MetricCurve metrics={metrics} />
-        <CheckpointList checkpoints={checkpoints} />
+
+        <div style={{ display: 'flex', gap: 8, borderBottom: `1px solid ${CYBER.border}`, paddingBottom: 8 }}>
+          {[
+            { key: 'metrics', label: 'Metrics' },
+            { key: 'checkpoints', label: 'Checkpoints' },
+            { key: 'trainings', label: 'Trainings' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
+              style={{
+                background: activeTab === tab.key ? `${CYBER.blue}22` : 'transparent',
+                color: activeTab === tab.key ? CYBER.blue : CYBER.muted,
+                border: `1px solid ${activeTab === tab.key ? CYBER.blue : CYBER.border}`,
+                borderRadius: 4,
+                padding: '6px 12px',
+                fontFamily: CYBER.font,
+                cursor: 'pointer',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'metrics' && <MetricCurve metrics={metrics} />}
+        {activeTab === 'checkpoints' && <CheckpointList checkpoints={checkpoints} />}
+        {activeTab === 'trainings' && selectedRunId && <TrainingPanel runId={selectedRunId} />}
       </div>
     </div>
   )
