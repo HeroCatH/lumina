@@ -83,9 +83,10 @@ export async function syncLogs(runId: string): Promise<{ synced: number }> {
   return res.json()
 }
 
-export async function fetchEvaluations(runId?: string): Promise<Evaluation[]> {
+export async function fetchEvaluations(runId?: string, datasetId?: string): Promise<Evaluation[]> {
   const params = new URLSearchParams()
   if (runId) params.append('run_id', runId)
+  if (datasetId) params.append('dataset_id', datasetId)
   const res = await fetch(buildUrl('/api/evaluations', params))
   if (!res.ok) throw await apiError(res, 'Failed to fetch evaluations')
   return res.json()

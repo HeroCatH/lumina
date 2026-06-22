@@ -48,6 +48,7 @@ export default function EvaluatePanel() {
   const [evalName, setEvalName] = useState('')
   const [taskType, setTaskType] = useState<'auto' | 'classification' | 'regression'>('auto')
   const [datasetId, setDatasetId] = useState('')
+  const [filterDatasetId, setFilterDatasetId] = useState('')
 
   useEffect(() => {
     setLoading(true)
@@ -68,7 +69,7 @@ export default function EvaluatePanel() {
     }
     setError(null)
     setLoading(true)
-    fetchEvaluations(selectedRunId)
+    fetchEvaluations(selectedRunId, filterDatasetId || undefined)
       .then((es) => {
         setEvaluations(es)
         if (es.length > 0 && !es.find((e) => e.id === selectedEvalId)) {
@@ -79,7 +80,7 @@ export default function EvaluatePanel() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [selectedRunId])
+  }, [selectedRunId, filterDatasetId])
 
   useEffect(() => {
     if (!selectedEvalId) {
@@ -121,7 +122,7 @@ export default function EvaluatePanel() {
       setEvalName('')
       setTaskType('auto')
       setDatasetId('')
-      const updated = await fetchEvaluations(selectedRunId)
+      const updated = await fetchEvaluations(selectedRunId, filterDatasetId || undefined)
       setEvaluations(updated)
       setSelectedEvalId(created.id)
     } catch (err: any) {
@@ -140,7 +141,7 @@ export default function EvaluatePanel() {
       await deleteEvaluation(selectedEvalId)
       setSelectedEvalId(null)
       if (selectedRunId) {
-        const updated = await fetchEvaluations(selectedRunId)
+        const updated = await fetchEvaluations(selectedRunId, filterDatasetId || undefined)
         setEvaluations(updated)
       }
     } catch (err: any) {
@@ -203,6 +204,24 @@ export default function EvaluatePanel() {
           {runs.length === 0 && (
             <EmptyState style={{ marginTop: 12 }}>Create a run first.</EmptyState>
           )}
+        </div>
+
+        <div style={{ padding: 16, borderBottom: `1px solid ${CYBER.border}` }}>
+          <div style={{ color: CYBER.pink, fontSize: 12, marginBottom: 10, textTransform: 'uppercase' }}>
+            Filter by Dataset
+          </div>
+          <select
+            value={filterDatasetId}
+            onChange={(e) => setFilterDatasetId(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">all datasets</option>
+            {datasets.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={{ padding: 16, borderBottom: `1px solid ${CYBER.border}` }}>
@@ -276,6 +295,7 @@ export default function EvaluatePanel() {
             {evaluations.map((ev) => {
               const primary = primaryMetric(ev)
               const active = ev.id === selectedEvalId
+              const dsName = ev.dataset_id ? datasets.find((d) => d.id === ev.dataset_id)?.name : null
               return (
                 <div
                   key={ev.id}
@@ -294,6 +314,7 @@ export default function EvaluatePanel() {
                   </div>
                   <div style={{ fontSize: 11, color: CYBER.muted, marginTop: 4 }}>
                     {ev.task_type} • {primary}
+                    {dsName ? ` • ds:${dsName}` : ''}
                   </div>
                   <div style={{ fontSize: 10, color: CYBER.muted, marginTop: 4 }}>{fmtDate(ev.created_at)}</div>
                 </div>
@@ -354,6 +375,9 @@ export default function EvaluatePanel() {
                 </div>
                 <div style={{ fontSize: 12, color: CYBER.muted, marginTop: 6 }}>
                   {detail.task_type} • {fmtDate(detail.created_at)} • {detail.predictions_path}
+                  {detail.dataset_id
+                    ? ` • dataset: ${datasets.find((d) => d.id === detail.dataset_id)?.name || detail.dataset_id.slice(0, 8)}`
+                    : ''}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

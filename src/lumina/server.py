@@ -122,10 +122,16 @@ def create_app(model: Optional[Any] = None, project: Optional[Project] = None) -
         )
 
     @app.get("/api/evaluations")
-    def list_evaluations(request: Request, run_id: Optional[str] = Query(None)) -> list[dict]:
+    def list_evaluations(
+        request: Request,
+        run_id: Optional[str] = Query(None),
+        dataset_id: Optional[str] = Query(None),
+    ) -> list[dict]:
         proj = _current_project(request)
         if run_id is not None and proj.experiments.runs.get(run_id) is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        if dataset_id is not None:
+            return proj.experiments.evaluations.list_by_dataset(dataset_id)
         if run_id is not None:
             return proj.experiments.evaluations.list_by_run(run_id)
         return proj.experiments.evaluations.list_by_project(proj.id)
